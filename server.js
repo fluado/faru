@@ -175,6 +175,14 @@ function gitCommit(message, paths) {
     }
     execFileSync('git', ['commit', '-m', `board: ${message}`], { cwd: DOCS_ROOT, stdio: 'pipe' });
     console.log(`  📝 committed: ${message}`);
+    // Push immediately
+    execFile('git', ['push'], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
+      if (err) {
+        console.log(`  ⚠  git push failed: ${stderr.trim() || err.message}`);
+        return;
+      }
+      console.log(`  ⬆  pushed`);
+    });
   } catch (e) {
     console.log(`  ⚠  git commit failed: ${e.message}`);
   }
@@ -358,36 +366,50 @@ fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
   }, 5000); // 5s debounce — lets multi-file saves settle
 });
 
-// --- Periodic Git Sync (pull --rebase + push) ---
-const GIT_SYNC_INTERVAL = 30 * 60_000; // 30 minutes
+// --- Git Sync: poll remote SHA every 5s, pull only when changed ---
+const SYNC_INTERVAL = 5_000; // 5 seconds
+let lastKnownRemoteSha = null;
 
-function gitSync() {
-  execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
-    if (pullErr) {
-      console.log(`  ⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
+function checkRemote() {
+  execFile('git', ['ls-remote', 'origin', 'HEAD'], { cwd: DOCS_ROOT }, (err, stdout) => {
+    if (err) return; // network blip — skip silently
+    const remoteSha = stdout.split(/\s/)[0];
+    if (!remoteSha) return;
+
+    // First run — just record the SHA
+    if (!lastKnownRemoteSha) {
+      lastKnownRemoteSha = remoteSha;
       return;
     }
-    const pulled = pullOut.trim();
-    if (pulled && !pulled.includes('Already up to date')) {
-      console.log(`  ⬇  git pull: ${pulled}`);
-      notifyLiveReload();
-    }
-    // Push any local commits
-    execFile('git', ['push'], { cwd: DOCS_ROOT }, (pushErr, pushOut, pushStderr) => {
-      if (pushErr) {
-        console.log(`  ⚠  git push failed: ${pushStderr.trim() || pushErr.message}`);
+
+    if (remoteSha === lastKnownRemoteSha) return; // no change
+    lastKnownRemoteSha = remoteSha;
+
+    // Remote changed — pull
+    execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
+      if (pullErr) {
+        console.log(`  ⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
         return;
       }
-      const pushed = pushOut.trim() || pushStderr.trim();
-      if (pushed && !pushed.includes('Everything up-to-date')) {
-        console.log(`  ⬆  git push: ${pushed}`);
-      }
+      console.log(`  ⬇  synced from remote`);
+      notifyLiveReload();
     });
   });
 }
 
-setInterval(gitSync, GIT_SYNC_INTERVAL);
-gitSync(); // sync immediately on startup
+setInterval(checkRemote, SYNC_INTERVAL);
+
+// Initial push on startup (flush any unpushed local commits)
+execFile('git', ['push'], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
+  if (err) {
+    console.log(`  ⚠  initial push failed: ${stderr.trim() || err.message}`);
+    return;
+  }
+  const result = stderr.trim();
+  if (result && !result.includes('Everything up-to-date')) {
+    console.log(`  ⬆  initial push: ${result}`);
+  }
+});
 
 server.listen(PORT, () => {
   console.log(`\n  ┌──────────────────────────────────────┐`);
@@ -396,7 +418,8 @@ server.listen(PORT, () => {
   console.log(`  │   http://localhost:${PORT}              │`);
   console.log(`  │   live-reload: ON                    │`);
   console.log(`  │   auto-commit: backlog/ (5s)         │`);
-  console.log(`  │   git sync: every 30m               │`);
+  console.log(`  │   git sync: push on commit           │`);
+  console.log(`  │   git sync: poll remote (5s)         │`);
   console.log(`  │                                      │`);
   console.log(`  └──────────────────────────────────────┘\n`);
 });
