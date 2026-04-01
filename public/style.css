@@ -190,10 +190,44 @@ body {
 	padding: 4px 10px 10px;
 	min-height: 80px;
 	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+}
+
+.card-list::-webkit-scrollbar {
+	width: 4px;
+}
+
+.card-list::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.card-list::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 4px;
+}
+
+.card-list::-webkit-scrollbar-thumb:hover {
+	background: var(--text-faint);
 }
 
 .card-list.drag-over {
 	background: var(--accent-light);
+}
+
+/* Drop indicator for drag reordering */
+.drop-indicator {
+	height: 3px;
+	background: var(--accent);
+	border-radius: 2px;
+	margin: 4px 0;
+	transition: opacity 0.15s;
+	opacity: 1;
+}
+
+.card.drag-above {
+	border-top: 3px solid var(--accent);
+	margin-top: -3px;
 }
 
 /* Per-column add button */

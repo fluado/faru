@@ -110,9 +110,7 @@ function renderCard(card) {
 
   el.addEventListener('dragend', () => {
     el.classList.remove('dragging');
-    document.querySelectorAll('.card-list').forEach((l) => {
-      l.classList.remove('drag-over');
-    });
+    clearDropIndicators();
   });
 
   el.addEventListener('click', () => {
@@ -192,21 +190,44 @@ function getDragAfterElement(list, y) {
   return closest;
 }
 
+function clearDropIndicators() {
+  document.querySelectorAll('.drop-indicator').forEach((el) => { el.remove(); });
+  document.querySelectorAll('.card-list').forEach((l) => { l.classList.remove('drag-over'); });
+}
+
+function showDropIndicator(list, y) {
+  // Remove old indicators
+  document.querySelectorAll('.drop-indicator').forEach((el) => { el.remove(); });
+
+  const afterEl = getDragAfterElement(list, y);
+  const indicator = document.createElement('div');
+  indicator.className = 'drop-indicator';
+
+  if (afterEl) {
+    list.insertBefore(indicator, afterEl);
+  } else {
+    list.appendChild(indicator);
+  }
+}
+
 function setupDropZones() {
   document.querySelectorAll('.card-list').forEach((list) => {
     list.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      list.classList.add('drag-over');
+      showDropIndicator(list, e.clientY);
     });
 
-    list.addEventListener('dragleave', () => {
-      list.classList.remove('drag-over');
+    list.addEventListener('dragleave', (e) => {
+      // Only clear if truly leaving the list (not entering a child)
+      if (!list.contains(e.relatedTarget)) {
+        clearDropIndicators();
+      }
     });
 
     list.addEventListener('drop', (e) => {
       e.preventDefault();
-      list.classList.remove('drag-over');
+      clearDropIndicators();
       const slug = e.dataTransfer.getData('text/plain');
       const newStatus = list.closest('.column').dataset.status;
       if (!slug || !newStatus) return;
