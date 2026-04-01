@@ -324,7 +324,7 @@ function notifyLiveReload() {
   }
 }
 
-// Watch public/ for changes
+// Watch public/ for changes (live-reload)
 const PUBLIC_DIR = path.join(__dirname, 'public');
 let debounceTimer = null;
 fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
@@ -334,6 +334,25 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
     console.log(`  ♻  ${filename} changed — reloading browsers`);
     notifyLiveReload();
   }, 200);
+});
+
+// Watch backlog/ for IDE-created files (auto-commit)
+let backlogCommitTimer = null;
+const backlogChanges = new Set();
+fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
+  if (!filename || filename.includes('.DS_Store')) return;
+  backlogChanges.add(filename);
+  clearTimeout(backlogCommitTimer);
+  backlogCommitTimer = setTimeout(() => {
+    const files = [...backlogChanges];
+    backlogChanges.clear();
+    // Derive a meaningful message from the changed paths
+    const slugs = new Set(files.map(f => f.split(path.sep)[0]).filter(Boolean));
+    const msg = slugs.size === 1
+      ? `update ${[...slugs][0]}`
+      : `update ${slugs.size} cards`;
+    gitCommit(msg);
+  }, 5000); // 5s debounce — lets multi-file saves settle
 });
 
 // --- Periodic Git Sync (pull --rebase + push) ---
@@ -372,6 +391,7 @@ server.listen(PORT, () => {
   console.log(`  │   fluado board                       │`);
   console.log(`  │   http://localhost:${PORT}              │`);
   console.log(`  │   live-reload: ON                    │`);
+  console.log(`  │   auto-commit: backlog/ (5s)         │`);
   console.log(`  │   git sync: every 30m               │`);
   console.log(`  │                                      │`);
   console.log(`  └──────────────────────────────────────┘\n`);
