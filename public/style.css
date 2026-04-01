@@ -124,6 +124,7 @@ body {
 	border-radius: var(--radius-xl);
 	border: none;
 	min-height: 200px;
+	max-height: calc(100vh - 100px);
 	display: flex;
 	flex-direction: column;
 	box-shadow: var(--shadow);
@@ -188,6 +189,7 @@ body {
 	flex: 1;
 	padding: 4px 10px 10px;
 	min-height: 80px;
+	overflow-y: auto;
 }
 
 .card-list.drag-over {

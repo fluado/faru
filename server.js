@@ -102,6 +102,7 @@ function scanCards() {
         assigned: data.assigned || '',
         created: data.created || (dateMatch ? dateMatch[1] : ''),
         edited: data.edited || '',
+        position: data.position || '',
         canonicalFile: path.basename(canonical),
         files: allFiles,
         goal: data.description || extractGoal(body),
@@ -249,6 +250,10 @@ const server = http.createServer(async (req, res) => {
         gitCommit(`move ${slug} to ${body.status}`, [`backlog/${slug}`]);
       } else if (body.type) {
         gitCommit(`retype ${slug} to ${body.type}`, [`backlog/${slug}`]);
+      } else if (body.position) {
+        gitCommit(`reorder ${slug}`, [`backlog/${slug}`]);
+      } else if (body.title) {
+        gitCommit(`rename ${slug}`, [`backlog/${slug}`]);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));

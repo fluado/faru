@@ -1,6 +1,25 @@
 // --- State ---
 let cards = [];
 
+// --- Fractional Indexing ---
+
+function midpoint(a, b) {
+  if (!a && !b) return 'n';
+  if (!a) return String.fromCharCode(b.charCodeAt(0) - 1 > 96 ? b.charCodeAt(0) - 1 : 97);
+  if (!b) return a + 'n';
+  let i = 0;
+  let result = '';
+  while (true) {
+    const ca = i < a.length ? a.charCodeAt(i) : 96;
+    const cb = i < b.length ? b.charCodeAt(i) : 123;
+    if (cb - ca > 1) {
+      return result + String.fromCharCode(Math.floor((ca + cb) / 2));
+    }
+    result += a[i] || 'a';
+    i++;
+  }
+}
+
 // --- API ---
 
 async function fetchCards() {
@@ -110,7 +129,9 @@ function render() {
     const list = document.getElementById(`list-${status}`);
     const count = document.getElementById(`count-${status}`);
     list.innerHTML = '';
-    const filtered = cards.filter((c) => c.status === status);
+    const filtered = cards
+      .filter((c) => c.status === status)
+      .sort((a, b) => (a.position || 'n').localeCompare(b.position || 'n'));
     count.textContent = filtered.length;
     for (const card of filtered) {
       list.appendChild(renderCard(card));
@@ -156,6 +177,21 @@ function groupFiles(files) {
 
 // --- Drag & Drop ---
 
+function getDragAfterElement(list, y) {
+  const cardEls = [...list.querySelectorAll('.card:not(.dragging)')];
+  let closest = null;
+  let closestOffset = Number.NEGATIVE_INFINITY;
+  for (const el of cardEls) {
+    const box = el.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closestOffset) {
+      closestOffset = offset;
+      closest = el;
+    }
+  }
+  return closest;
+}
+
 function setupDropZones() {
   document.querySelectorAll('.card-list').forEach((list) => {
     list.addEventListener('dragover', (e) => {
@@ -176,9 +212,35 @@ function setupDropZones() {
       if (!slug || !newStatus) return;
 
       const card = cards.find((c) => c.slug === slug);
-      if (card && card.status !== newStatus) {
-        updateCard(slug, { status: newStatus });
+      if (!card) return;
+
+      // Get sorted cards in target column (excluding the dragged card)
+      const columnCards = cards
+        .filter((c) => c.status === newStatus && c.slug !== slug)
+        .sort((a, b) => (a.position || 'n').localeCompare(b.position || 'n'));
+
+      // Find where the card was dropped
+      const afterEl = getDragAfterElement(list, e.clientY);
+      let newPosition;
+
+      if (!afterEl) {
+        // Dropped at end
+        const lastCard = columnCards[columnCards.length - 1];
+        newPosition = midpoint(lastCard ? lastCard.position : null, null);
+      } else {
+        const afterSlug = afterEl.dataset.slug;
+        const afterIdx = columnCards.findIndex((c) => c.slug === afterSlug);
+        const beforeCard = afterIdx > 0 ? columnCards[afterIdx - 1] : null;
+        const afterCard = columnCards[afterIdx];
+        newPosition = midpoint(
+          beforeCard ? beforeCard.position : null,
+          afterCard ? afterCard.position : null
+        );
       }
+
+      const updates = { position: newPosition };
+      if (card.status !== newStatus) updates.status = newStatus;
+      updateCard(slug, updates);
     });
   });
 }
