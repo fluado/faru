@@ -359,6 +359,8 @@ fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
 const GIT_SYNC_INTERVAL = 30 * 60_000; // 30 minutes
 
 function gitSync() {
+  // Commit any dirty files before pulling
+  gitCommit('auto-save before sync');
   execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
     if (pullErr) {
       console.log(`  ⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
