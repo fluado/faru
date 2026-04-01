@@ -229,7 +229,9 @@ let currentDetailSlug = null;
 function openDetail(card) {
   currentDetailSlug = card.slug;
   const overlay = document.getElementById('detail-overlay');
-  document.getElementById('detail-title').textContent = card.title;
+  const titleEl = document.getElementById('detail-title');
+  titleEl.textContent = card.title;
+  titleEl.dataset.originalTitle = card.title;
 
   // Meta
   const meta = document.getElementById('detail-meta');
@@ -239,6 +241,7 @@ function openDetail(card) {
   meta.innerHTML = `
     ${assignee}
     <span class="card-date">${card.created}</span>
+    ${card.edited ? `<span class="card-date">edited ${card.edited}</span>` : ''}
   `;
 
   // Type selector
@@ -324,12 +327,34 @@ function setupDetailModal() {
   const archiveBtn = document.getElementById('detail-archive');
   const statusSelect = document.getElementById('detail-status');
   const typeSelect = document.getElementById('detail-type');
+  const titleEl = document.getElementById('detail-title');
   const openBtn = document.getElementById('detail-open');
 
   close.addEventListener('click', closeDetail);
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeDetail();
+  });
+
+  // Inline title editing (Flickr-style)
+  titleEl.addEventListener('blur', () => {
+    const newTitle = titleEl.textContent.trim();
+    const original = titleEl.dataset.originalTitle;
+    if (currentDetailSlug && newTitle && newTitle !== original) {
+      titleEl.dataset.originalTitle = newTitle;
+      updateCard(currentDetailSlug, { title: newTitle });
+    }
+  });
+
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      titleEl.blur();
+    }
+    if (e.key === 'Escape') {
+      titleEl.textContent = titleEl.dataset.originalTitle;
+      titleEl.blur();
+    }
   });
 
   archiveBtn.addEventListener('click', () => {

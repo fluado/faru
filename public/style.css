@@ -476,6 +476,24 @@ body {
 	gap: 8px;
 }
 
+#detail-title {
+	cursor: text;
+	border-radius: 4px;
+	padding: 2px 4px;
+	margin: -2px -4px;
+	transition: background var(--transition);
+	outline: none;
+}
+
+#detail-title:hover {
+	background: var(--column-bg);
+}
+
+#detail-title:focus {
+	background: var(--column-bg);
+	box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
 .detail-meta {
 	display: flex;
 	gap: 6px;

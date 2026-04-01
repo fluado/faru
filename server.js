@@ -8,6 +8,11 @@ const DOCS_ROOT = path.resolve(__dirname, '..');
 const BACKLOG_DIR = path.join(DOCS_ROOT, 'backlog');
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, 'archive');
 
+function log(msg) {
+  const ts = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  console.log(`  [${ts}] ${msg}`);
+}
+
 // --- YAML Frontmatter Parser (minimal, no deps) ---
 
 function parseFrontmatter(content) {
@@ -96,6 +101,7 @@ function scanCards() {
         status: data.status || 'todo',
         assigned: data.assigned || '',
         created: data.created || (dateMatch ? dateMatch[1] : ''),
+        edited: data.edited || '',
         canonicalFile: path.basename(canonical),
         files: allFiles,
         goal: data.description || extractGoal(body),
@@ -133,14 +139,16 @@ function updateCard(slug, updates) {
   const content = fs.readFileSync(canonical, 'utf-8');
   const { data, body } = parseFrontmatter(content);
   Object.assign(data, updates);
+  data.edited = new Date().toISOString().slice(0, 10);
   fs.writeFileSync(canonical, serializeFrontmatter(data, body), 'utf-8');
   return data;
 }
 
 function createCard(title, type, assigned, status, description) {
   const today = new Date().toISOString().slice(0, 10);
+  const typePart = type.toUpperCase();
   const slugPart = title.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  const slug = `${today}-${slugPart}`;
+  const slug = `${today}-${typePart}-${slugPart}`;
   const folderPath = path.join(BACKLOG_DIR, slug);
   if (fs.existsSync(folderPath)) throw new Error('Card already exists');
   fs.mkdirSync(folderPath, { recursive: true });
@@ -174,17 +182,17 @@ function gitCommit(message, paths) {
       // diff --cached returns exit 1 if there are staged changes — that's what we want
     }
     execFileSync('git', ['commit', '-m', `board: ${message}`], { cwd: DOCS_ROOT, stdio: 'pipe' });
-    console.log(`  📝 committed: ${message}`);
+    log(`📝 committed: ${message}`);
     // Push immediately
     execFile('git', ['push'], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
       if (err) {
-        console.log(`  ⚠  git push failed: ${stderr.trim() || err.message}`);
+        log(`⚠  git push failed: ${stderr.trim() || err.message}`);
         return;
       }
-      console.log(`  ⬆  pushed`);
+      log(`⬆  pushed`);
     });
   } catch (e) {
-    console.log(`  ⚠  git commit failed: ${e.message}`);
+    log(`⚠  git commit failed: ${e.message}`);
   }
 }
 
@@ -343,7 +351,7 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
   if (!filename) return;
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    console.log(`  ♻  ${filename} changed — reloading browsers`);
+    log(`♻  ${filename} changed — reloading browsers`);
     notifyLiveReload();
   }, 200);
 });
@@ -390,10 +398,10 @@ function checkRemote() {
     // Remote changed — pull
     execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
       if (pullErr) {
-        console.log(`  ⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
+        log(`⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
         return;
       }
-      console.log(`  ⬇  synced from remote`);
+      log(`⬇  synced from remote`);
       notifyLiveReload();
     });
   });
@@ -404,12 +412,12 @@ setInterval(checkRemote, SYNC_INTERVAL);
 // Initial push on startup (flush any unpushed local commits)
 execFile('git', ['push'], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
   if (err) {
-    console.log(`  ⚠  initial push failed: ${stderr.trim() || err.message}`);
+    log(`⚠  initial push failed: ${stderr.trim() || err.message}`);
     return;
   }
   const result = stderr.trim();
   if (result && !result.includes('Everything up-to-date')) {
-    console.log(`  ⬆  initial push: ${result}`);
+    log(`⬆  initial push: ${result}`);
   }
 });
 
