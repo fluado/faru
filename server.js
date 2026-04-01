@@ -366,7 +366,7 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
 let backlogCommitTimer = null;
 const backlogChanges = new Set();
 fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
-  if (!filename || filename.includes('.DS_Store')) return;
+  if (!filename || filename.includes('.DS_Store') || syncing) return;
   backlogChanges.add(filename);
   clearTimeout(backlogCommitTimer);
   backlogCommitTimer = setTimeout(() => {
@@ -377,14 +377,14 @@ fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
     const msg = slugs.size === 1
       ? `update ${[...slugs][0]}`
       : `update ${slugs.size} cards`;
-    const addPaths = files.map(f => path.join('backlog', f));
-    gitCommit(msg, addPaths);
+    gitCommit(msg, ['backlog/']);
   }, 5000); // 5s debounce — lets multi-file saves settle
 });
 
 // --- Git Sync: poll remote SHA every 5s, pull only when changed ---
 const SYNC_INTERVAL = 5_000; // 5 seconds
 let lastKnownRemoteSha = null;
+let syncing = false;
 
 function checkRemote() {
   execFile('git', ['ls-remote', 'origin', 'HEAD'], { cwd: DOCS_ROOT }, (err, stdout) => {
@@ -402,8 +402,10 @@ function checkRemote() {
     lastKnownRemoteSha = remoteSha;
 
     // Remote changed — pull
+    syncing = true;
     const localHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: DOCS_ROOT, encoding: 'utf-8' }).trim();
     execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
+      syncing = false;
       if (pullErr) {
         log(`⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
         return;
