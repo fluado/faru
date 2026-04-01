@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 
 const PORT = 3333;
 const DOCS_ROOT = path.resolve(__dirname, '..');
@@ -159,6 +159,25 @@ function archiveCard(slug) {
   fs.renameSync(src, path.join(ARCHIVE_DIR, slug));
 }
 
+// --- Git Helpers ---
+
+function gitCommit(message) {
+  try {
+    execFileSync('git', ['add', '-A'], { cwd: DOCS_ROOT, stdio: 'pipe' });
+    // Check if there's anything staged
+    try {
+      execFileSync('git', ['diff', '--cached', '--quiet'], { cwd: DOCS_ROOT, stdio: 'pipe' });
+      return; // nothing staged
+    } catch (_) {
+      // diff --cached returns exit 1 if there are staged changes — that's what we want
+    }
+    execFileSync('git', ['commit', '-m', `board: ${message}`], { cwd: DOCS_ROOT, stdio: 'pipe' });
+    console.log(`  📝 committed: ${message}`);
+  } catch (e) {
+    console.log(`  ⚠  git commit failed: ${e.message}`);
+  }
+}
+
 // --- HTTP Server ---
 
 function readBody(req) {
@@ -208,6 +227,9 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readBody(req);
       const result = updateCard(slug, body);
+      if (body.status) {
+        gitCommit(`move ${slug} to ${body.status}`);
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
     } catch (e) {
@@ -221,6 +243,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readBody(req);
       const slug = createCard(body.title, body.type || 'ops', body.assigned || '', body.status, body.description);
+      gitCommit(`create ${slug} as ${body.status || 'todo'}`);
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ slug }));
     } catch (e) {
@@ -234,6 +257,7 @@ const server = http.createServer(async (req, res) => {
     const slug = decodeURIComponent(url.pathname.split('/')[3]);
     try {
       archiveCard(slug);
+      gitCommit(`archive ${slug}`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ archived: true }));
     } catch (e) {
@@ -312,12 +336,43 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
   }, 200);
 });
 
+// --- Periodic Git Sync (pull --rebase + push) ---
+const GIT_SYNC_INTERVAL = 30 * 60_000; // 30 minutes
+
+function gitSync() {
+  execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
+    if (pullErr) {
+      console.log(`  ⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
+      return;
+    }
+    const pulled = pullOut.trim();
+    if (pulled && !pulled.includes('Already up to date')) {
+      console.log(`  ⬇  git pull: ${pulled}`);
+      notifyLiveReload();
+    }
+    // Push any local commits
+    execFile('git', ['push'], { cwd: DOCS_ROOT }, (pushErr, pushOut, pushStderr) => {
+      if (pushErr) {
+        console.log(`  ⚠  git push failed: ${pushStderr.trim() || pushErr.message}`);
+        return;
+      }
+      const pushed = pushOut.trim() || pushStderr.trim();
+      if (pushed && !pushed.includes('Everything up-to-date')) {
+        console.log(`  ⬆  git push: ${pushed}`);
+      }
+    });
+  });
+}
+
+setInterval(gitSync, GIT_SYNC_INTERVAL);
+
 server.listen(PORT, () => {
   console.log(`\n  ┌──────────────────────────────────────┐`);
   console.log(`  │                                      │`);
   console.log(`  │   fluado board                       │`);
   console.log(`  │   http://localhost:${PORT}              │`);
   console.log(`  │   live-reload: ON                    │`);
+  console.log(`  │   git sync: every 30m               │`);
   console.log(`  │                                      │`);
   console.log(`  └──────────────────────────────────────┘\n`);
 });
