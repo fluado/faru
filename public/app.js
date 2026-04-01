@@ -92,7 +92,7 @@ function renderCard(card) {
 
   el.addEventListener('dragend', () => {
     el.classList.remove('dragging');
-    clearDropIndicators();
+    document.querySelectorAll('.card-list').forEach((l) => { l.classList.remove('drag-over'); });
   });
 
   el.addEventListener('click', () => {
@@ -157,59 +157,21 @@ function groupFiles(files) {
 
 // --- Drag & Drop ---
 
-function getDragAfterElement(list, y) {
-  const cardEls = [...list.querySelectorAll('.card:not(.dragging)')];
-  let closest = null;
-  let closestOffset = Number.NEGATIVE_INFINITY;
-  for (const el of cardEls) {
-    const box = el.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > closestOffset) {
-      closestOffset = offset;
-      closest = el;
-    }
-  }
-  return closest;
-}
-
-function clearDropIndicators() {
-  document.querySelectorAll('.drop-indicator').forEach((el) => { el.remove(); });
-  document.querySelectorAll('.card-list').forEach((l) => { l.classList.remove('drag-over'); });
-}
-
-function showDropIndicator(list, y) {
-  // Remove old indicators
-  document.querySelectorAll('.drop-indicator').forEach((el) => { el.remove(); });
-
-  const afterEl = getDragAfterElement(list, y);
-  const indicator = document.createElement('div');
-  indicator.className = 'drop-indicator';
-
-  if (afterEl) {
-    list.insertBefore(indicator, afterEl);
-  } else {
-    list.appendChild(indicator);
-  }
-}
-
 function setupDropZones() {
   document.querySelectorAll('.card-list').forEach((list) => {
     list.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      showDropIndicator(list, e.clientY);
+      list.classList.add('drag-over');
     });
 
-    list.addEventListener('dragleave', (e) => {
-      // Only clear if truly leaving the list (not entering a child)
-      if (!list.contains(e.relatedTarget)) {
-        clearDropIndicators();
-      }
+    list.addEventListener('dragleave', () => {
+      list.classList.remove('drag-over');
     });
 
     list.addEventListener('drop', (e) => {
       e.preventDefault();
-      clearDropIndicators();
+      list.classList.remove('drag-over');
       const slug = e.dataTransfer.getData('text/plain');
       const newStatus = list.closest('.column').dataset.status;
       if (!slug || !newStatus) return;

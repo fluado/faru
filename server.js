@@ -190,6 +190,10 @@ function gitCommit(message, paths) {
         return;
       }
       log(`⬆  pushed`);
+      // Update SHA so the next poll doesn't trigger a redundant pull
+      try {
+        lastKnownRemoteSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: DOCS_ROOT, encoding: 'utf-8' }).trim();
+      } catch (_) { /* best effort */ }
     });
   } catch (e) {
     log(`⚠  git commit failed: ${e.message}`);
@@ -403,7 +407,15 @@ function checkRemote() {
         log(`⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
         return;
       }
-      log(`⬇  synced from remote`);
+      // Show what commits came in
+      execFile('git', ['log', `${remoteSha}..HEAD`, '--oneline', '--reverse'], { cwd: DOCS_ROOT }, (logErr, logOut) => {
+        const msgs = logErr ? '' : logOut.trim();
+        if (msgs) {
+          log(`⬇  synced from remote:\n${msgs.split('\n').map(l => `       ${l}`).join('\n')}`);
+        } else {
+          log(`⬇  synced from remote`);
+        }
+      });
       notifyLiveReload();
     });
   });
