@@ -384,6 +384,7 @@ function gitSync() {
 }
 
 setInterval(gitSync, GIT_SYNC_INTERVAL);
+gitSync(); // sync immediately on startup
 
 server.listen(PORT, () => {
   console.log(`\n  ┌──────────────────────────────────────┐`);
