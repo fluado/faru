@@ -161,9 +161,11 @@ function archiveCard(slug) {
 
 // --- Git Helpers ---
 
-function gitCommit(message) {
+function gitCommit(message, paths) {
   try {
-    execFileSync('git', ['add', 'backlog/'], { cwd: DOCS_ROOT, stdio: 'pipe' });
+    for (const p of paths) {
+      execFileSync('git', ['add', p], { cwd: DOCS_ROOT, stdio: 'pipe' });
+    }
     // Check if there's anything staged
     try {
       execFileSync('git', ['diff', '--cached', '--quiet'], { cwd: DOCS_ROOT, stdio: 'pipe' });
@@ -228,7 +230,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const result = updateCard(slug, body);
       if (body.status) {
-        gitCommit(`move ${slug} to ${body.status}`);
+        gitCommit(`move ${slug} to ${body.status}`, [`backlog/${slug}`]);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
@@ -243,7 +245,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readBody(req);
       const slug = createCard(body.title, body.type || 'ops', body.assigned || '', body.status, body.description);
-      gitCommit(`create ${slug} as ${body.status || 'todo'}`);
+      gitCommit(`create ${slug} as ${body.status || 'todo'}`, [`backlog/${slug}`]);
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ slug }));
     } catch (e) {
@@ -257,7 +259,7 @@ const server = http.createServer(async (req, res) => {
     const slug = decodeURIComponent(url.pathname.split('/')[3]);
     try {
       archiveCard(slug);
-      gitCommit(`archive ${slug}`);
+      gitCommit(`archive ${slug}`, [`backlog/${slug}`, `backlog/archive/${slug}`]);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ archived: true }));
     } catch (e) {
@@ -351,7 +353,8 @@ fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
     const msg = slugs.size === 1
       ? `update ${[...slugs][0]}`
       : `update ${slugs.size} cards`;
-    gitCommit(msg);
+    const addPaths = files.map(f => path.join('backlog', f));
+    gitCommit(msg, addPaths);
   }, 5000); // 5s debounce — lets multi-file saves settle
 });
 
