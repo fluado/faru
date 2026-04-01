@@ -402,13 +402,14 @@ function checkRemote() {
     lastKnownRemoteSha = remoteSha;
 
     // Remote changed — pull
+    const localHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: DOCS_ROOT, encoding: 'utf-8' }).trim();
     execFile('git', ['pull', '--rebase'], { cwd: DOCS_ROOT }, (pullErr, pullOut, pullStderr) => {
       if (pullErr) {
         log(`⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
         return;
       }
-      // Show what commits came in
-      execFile('git', ['log', `${remoteSha}..HEAD`, '--oneline', '--reverse'], { cwd: DOCS_ROOT }, (logErr, logOut) => {
+      // Show what commits came in (from old local HEAD to new HEAD)
+      execFile('git', ['log', `${localHead}..HEAD`, '--oneline', '--reverse'], { cwd: DOCS_ROOT }, (logErr, logOut) => {
         const msgs = logErr ? '' : logOut.trim();
         if (msgs) {
           log(`⬇  synced from remote:\n${msgs.split('\n').map(l => `       ${l}`).join('\n')}`);
