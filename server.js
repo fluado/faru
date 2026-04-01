@@ -239,6 +239,8 @@ const server = http.createServer(async (req, res) => {
       const result = updateCard(slug, body);
       if (body.status) {
         gitCommit(`move ${slug} to ${body.status}`, [`backlog/${slug}`]);
+      } else if (body.type) {
+        gitCommit(`retype ${slug} to ${body.type}`, [`backlog/${slug}`]);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));

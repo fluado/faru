@@ -92,6 +92,13 @@
           <button class="modal-close" id="detail-close">&times;</button>
         </div>
         <div class="detail-header-row">
+          <select class="detail-type-select" id="detail-type">
+            <option value="product">Product</option>
+            <option value="prospect">Prospect</option>
+            <option value="legal">Legal</option>
+            <option value="ops">Ops</option>
+            <option value="infra">Infra</option>
+          </select>
           <div class="detail-meta" id="detail-meta"></div>
           <select class="detail-status-select" id="detail-status">
             <option value="todo">Todo</option>
@@ -122,13 +129,11 @@
 
   <script src="app.js"></script>
   <script>
-    // Live-reload via SSE
-    (function() {
-      const es = new EventSource('/api/live-reload');
-      es.onmessage = function(e) {
-        if (e.data === 'reload') location.reload();
-      };
-    })();
+    // Live-reload via SSE — soft refresh (re-fetch cards, don't nuke modals)
+    const es = new EventSource('/api/live-reload');
+    es.onmessage = (e) => {
+      if (e.data === 'reload') fetchCards();
+    };
   </script>
 </body>
 </html>

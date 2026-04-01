@@ -237,10 +237,12 @@ function openDetail(card) {
     ? `<span class="badge">${card.assigned}</span>`
     : '';
   meta.innerHTML = `
-    <span class="badge ${badgeClass(card.type)}">${card.type}</span>
     ${assignee}
     <span class="card-date">${card.created}</span>
   `;
+
+  // Type selector
+  document.getElementById('detail-type').value = card.type;
 
   // Status selector
   document.getElementById('detail-status').value = card.status;
@@ -321,6 +323,7 @@ function setupDetailModal() {
   const close = document.getElementById('detail-close');
   const archiveBtn = document.getElementById('detail-archive');
   const statusSelect = document.getElementById('detail-status');
+  const typeSelect = document.getElementById('detail-type');
   const openBtn = document.getElementById('detail-open');
 
   close.addEventListener('click', closeDetail);
@@ -331,6 +334,12 @@ function setupDetailModal() {
 
   archiveBtn.addEventListener('click', () => {
     if (currentDetailSlug) archiveCard(currentDetailSlug);
+  });
+
+  typeSelect.addEventListener('change', () => {
+    if (currentDetailSlug) {
+      updateCard(currentDetailSlug, { type: typeSelect.value });
+    }
   });
 
   statusSelect.addEventListener('change', () => {
