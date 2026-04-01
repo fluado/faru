@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fluado board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <h1 class="logo">fluado<span class="logo-accent">board</span></h1>
+    </div>
+  </header>
+
+  <main class="board" id="board">
+    <div class="column" data-status="todo">
+      <div class="column-header">
+        <span class="column-dot dot-todo"></span>
+        <h2>Todo</h2>
+        <span class="column-count" id="count-todo">0</span>
+        <button class="btn-column-add" data-status="todo" title="New card">+ New</button>
+      </div>
+      <div class="card-list" id="list-todo"></div>
+    </div>
+    <div class="column" data-status="wip">
+      <div class="column-header">
+        <span class="column-dot dot-wip"></span>
+        <h2>WIP</h2>
+        <span class="column-count" id="count-wip">0</span>
+        <button class="btn-column-add" data-status="wip" title="New card">+ New</button>
+      </div>
+      <div class="card-list" id="list-wip"></div>
+    </div>
+    <div class="column" data-status="done">
+      <div class="column-header">
+        <span class="column-dot dot-done"></span>
+        <h2>Done</h2>
+        <span class="column-count" id="count-done">0</span>
+        <button class="btn-column-add" data-status="done" title="New card">+ New</button>
+      </div>
+      <div class="card-list" id="list-done"></div>
+    </div>
+  </main>
+
+  <!-- New Card Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>New Card</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <form id="new-card-form" class="modal-form">
+        <label>
+          Title
+          <input type="text" name="title" required autofocus placeholder="e.g. Send GTCs to lawyer">
+        </label>
+        <label>
+          Description
+          <textarea name="description" rows="2" placeholder="Short summary of what this card is about"></textarea>
+        </label>
+        <label>
+          Type
+          <select name="type">
+            <option value="product">Product</option>
+            <option value="prospect">Prospect</option>
+            <option value="legal">Legal</option>
+            <option value="ops" selected>Ops</option>
+            <option value="infra">Infra</option>
+          </select>
+        </label>
+        <label>
+          Assigned
+          <select name="assigned">
+            <option value="">Unassigned</option>
+            <option value="yves">Yves</option>
+            <option value="arbo">Arbo</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn-primary btn-full">Create</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Card Detail Modal -->
+  <div class="modal-overlay" id="detail-overlay">
+    <div class="modal modal-detail">
+      <!-- Primary: Title + Status -->
+      <div class="detail-primary">
+        <div class="modal-header">
+          <h3 id="detail-title"></h3>
+          <button class="modal-close" id="detail-close">&times;</button>
+        </div>
+        <div class="detail-header-row">
+          <div class="detail-meta" id="detail-meta"></div>
+          <select class="detail-status-select" id="detail-status">
+            <option value="todo">Todo</option>
+            <option value="wip">WIP</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Secondary: Progress + Goal -->
+      <div class="detail-context">
+        <div class="detail-progress" id="detail-progress"></div>
+        <div class="detail-body" id="detail-body"></div>
+      </div>
+
+      <!-- Content: Files -->
+      <div class="detail-content">
+        <div class="detail-files" id="detail-files"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="detail-actions-zone">
+        <button class="btn btn-open" id="detail-open">⟨/⟩ Open in Editor</button>
+        <button class="btn btn-danger-subtle" id="detail-archive">Archive</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Live-reload via SSE
+    (function() {
+      const es = new EventSource('/api/live-reload');
+      es.onmessage = function(e) {
+        if (e.data === 'reload') location.reload();
+      };
+    })();
+  </script>
+</body>
+</html>
