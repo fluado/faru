@@ -85,44 +85,71 @@
   <!-- Card Detail Modal -->
   <div class="modal-overlay" id="detail-overlay">
     <div class="modal modal-detail">
-      <!-- Primary: Title + Status -->
+      <!-- Title Bar -->
       <div class="detail-primary">
         <div class="modal-header">
           <h3 id="detail-title" contenteditable="true"></h3>
           <button class="modal-close" id="detail-close">&times;</button>
         </div>
-        <div class="detail-header-row">
-          <select class="detail-type-select" id="detail-type">
-            <option value="product">Product</option>
-            <option value="prospect">Prospect</option>
-            <option value="legal">Legal</option>
-            <option value="ops">Ops</option>
-            <option value="infra">Infra</option>
-          </select>
-          <div class="detail-meta" id="detail-meta"></div>
-          <select class="detail-status-select" id="detail-status">
-            <option value="todo">Todo</option>
-            <option value="wip">WIP</option>
-            <option value="done">Done</option>
-          </select>
+      </div>
+
+      <!-- Side-by-Side: Description + Sidebar -->
+      <div class="detail-split">
+        <!-- Left: Description + Files -->
+        <div class="detail-left">
+          <div class="detail-description-zone">
+            <label class="detail-section-label">Description</label>
+            <div class="detail-body" id="detail-body" contenteditable="true" data-placeholder="Add a description…"></div>
+          </div>
+          <div class="detail-progress" id="detail-progress"></div>
+          <div class="detail-files-zone">
+            <div class="detail-files" id="detail-files"></div>
+          </div>
         </div>
-      </div>
 
-      <!-- Secondary: Progress + Goal -->
-      <div class="detail-context">
-        <div class="detail-progress" id="detail-progress"></div>
-        <div class="detail-body" id="detail-body"></div>
-      </div>
-
-      <!-- Content: Files -->
-      <div class="detail-content">
-        <div class="detail-files" id="detail-files"></div>
+        <!-- Right: Metadata Sidebar -->
+        <div class="detail-sidebar">
+          <div class="detail-sidebar-row">
+            <span class="detail-sidebar-label">Type</span>
+            <select class="detail-sidebar-select" id="detail-type">
+              <option value="product">Product</option>
+              <option value="prospect">Prospect</option>
+              <option value="legal">Legal</option>
+              <option value="ops">Ops</option>
+              <option value="infra">Infra</option>
+            </select>
+          </div>
+          <div class="detail-sidebar-row">
+            <span class="detail-sidebar-label">Status</span>
+            <select class="detail-sidebar-select" id="detail-status">
+              <option value="todo">Todo</option>
+              <option value="wip">WIP</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="detail-sidebar-row">
+            <span class="detail-sidebar-label">Assigned</span>
+            <select class="detail-sidebar-select" id="detail-assigned">
+              <option value="">Unassigned</option>
+              <option value="yves">Yves</option>
+              <option value="arbo">Arbo</option>
+            </select>
+          </div>
+          <div class="detail-sidebar-row">
+            <span class="detail-sidebar-label">Created</span>
+            <span class="detail-sidebar-value" id="detail-created">—</span>
+          </div>
+          <div class="detail-sidebar-row">
+            <span class="detail-sidebar-label">Edited</span>
+            <span class="detail-sidebar-value" id="detail-edited">—</span>
+          </div>
+        </div>
       </div>
 
       <!-- Actions -->
       <div class="detail-actions-zone">
-        <button class="btn btn-open" id="detail-open">⟨/⟩ Open in Editor</button>
         <button class="btn btn-danger-subtle" id="detail-archive">Archive</button>
+        <button class="btn btn-open" id="detail-open">Open in Editor →</button>
       </div>
     </div>
   </div>

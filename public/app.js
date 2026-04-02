@@ -125,35 +125,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// --- File Grouping ---
 
-function groupFiles(files) {
-  if (!files || files.length === 0) return [];
-
-  const groups = {
-    reports: { label: '📊 Reports', items: [] },
-    specs: { label: '📋 Specs & Plans', items: [] },
-    other: { label: '📄 Other', items: [] },
-  };
-
-  for (const f of files) {
-    const lf = f.toLowerCase();
-    if (lf.includes('-report') || lf.includes('report')) {
-      groups.reports.items.push(f);
-    } else if (
-      lf.includes('-milestones') ||
-      lf.includes('-spec') ||
-      lf.includes('-tickets') ||
-      lf.includes('-roadmap')
-    ) {
-      groups.specs.items.push(f);
-    } else {
-      groups.other.items.push(f);
-    }
-  }
-
-  return Object.values(groups).filter((g) => g.items.length > 0);
-}
 
 // --- Drag & Drop ---
 
@@ -234,22 +206,21 @@ function openDetail(card) {
   titleEl.textContent = card.title;
   titleEl.dataset.originalTitle = card.title;
 
-  // Meta
-  const meta = document.getElementById('detail-meta');
-  const assignee = card.assigned
-    ? `<span class="badge">${card.assigned}</span>`
-    : '';
-  meta.innerHTML = `
-    ${assignee}
-    <span class="card-date">${card.created}</span>
-    ${card.edited ? `<span class="card-date">edited ${card.edited}</span>` : ''}
-  `;
-
-  // Type selector
+  // Sidebar metadata
   document.getElementById('detail-type').value = card.type;
-
-  // Status selector
   document.getElementById('detail-status').value = card.status;
+  document.getElementById('detail-assigned').value = card.assigned || '';
+  document.getElementById('detail-created').textContent = card.created || '—';
+  document.getElementById('detail-edited').textContent = card.edited || '—';
+
+  // Description (editable)
+  const body = document.getElementById('detail-body');
+  if (card.goal) {
+    body.textContent = card.goal;
+  } else {
+    body.textContent = '';
+  }
+  body.dataset.originalDescription = card.goal || '';
 
   // Progress bar
   const progress = document.getElementById('detail-progress');
@@ -273,33 +244,20 @@ function openDetail(card) {
     progress.innerHTML = '';
   }
 
-  // Goal (from first blockquote)
-  const body = document.getElementById('detail-body');
-  if (card.goal) {
-    body.textContent = card.goal;
-  } else {
-    body.innerHTML = '';
-  }
-
-  // Files — grouped, clickable
+  // Files — flat list, clickable
   const files = document.getElementById('detail-files');
-  const groups = groupFiles(card.files);
-  if (groups.length > 0) {
-    files.innerHTML = groups
-      .map(
-        (g) => `
+  if (card.files && card.files.length > 0) {
+    files.innerHTML = `
       <div class="detail-file-group">
-        <div class="detail-file-group-title">${g.label} (${g.items.length})</div>
-        ${g.items
+        <div class="detail-file-group-title">📎 Files (${card.files.length})</div>
+        ${card.files
           .map(
             (f) =>
               `<div class="detail-file" data-file="${escapeHtml(f)}">${escapeHtml(f)}</div>`
           )
           .join('')}
       </div>
-    `
-      )
-      .join('');
+    `;
 
     // Attach click handlers to files
     files.querySelectorAll('.detail-file').forEach((el) => {
@@ -337,7 +295,7 @@ function setupDetailModal() {
     if (e.target === overlay) closeDetail();
   });
 
-  // Inline title editing (Flickr-style)
+  // Inline title editing (blur-save)
   titleEl.addEventListener('blur', () => {
     const newTitle = titleEl.textContent.trim();
     const original = titleEl.dataset.originalTitle;
@@ -358,6 +316,24 @@ function setupDetailModal() {
     }
   });
 
+  // Inline description editing (blur-save)
+  const bodyEl = document.getElementById('detail-body');
+  bodyEl.addEventListener('blur', () => {
+    const newDesc = bodyEl.textContent.trim();
+    const original = bodyEl.dataset.originalDescription;
+    if (currentDetailSlug && newDesc !== original) {
+      bodyEl.dataset.originalDescription = newDesc;
+      updateCard(currentDetailSlug, { description: newDesc });
+    }
+  });
+
+  bodyEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      bodyEl.textContent = bodyEl.dataset.originalDescription;
+      bodyEl.blur();
+    }
+  });
+
   archiveBtn.addEventListener('click', () => {
     if (currentDetailSlug) archiveCard(currentDetailSlug);
   });
@@ -371,6 +347,13 @@ function setupDetailModal() {
   statusSelect.addEventListener('change', () => {
     if (currentDetailSlug) {
       updateCard(currentDetailSlug, { status: statusSelect.value });
+    }
+  });
+
+  const assignedSelect = document.getElementById('detail-assigned');
+  assignedSelect.addEventListener('change', () => {
+    if (currentDetailSlug) {
+      updateCard(currentDetailSlug, { assigned: assignedSelect.value });
     }
   });
 
