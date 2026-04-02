@@ -8,6 +8,23 @@ const DOCS_ROOT = path.resolve(__dirname, '..');
 const BACKLOG_DIR = path.join(DOCS_ROOT, 'backlog');
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, 'archive');
 
+// Map git user.name → board assignee slug
+const GIT_USER_MAP = {
+  'yvg': 'yves',
+  'Arbo von Monkiewitsch': 'arbo',
+};
+
+function resolveGitUser() {
+  try {
+    const raw = execFileSync('git', ['config', 'user.name'], { cwd: DOCS_ROOT, encoding: 'utf-8' }).trim();
+    return GIT_USER_MAP[raw] || raw.toLowerCase();
+  } catch (_) {
+    return '';
+  }
+}
+
+const gitUser = resolveGitUser();
+
 function log(msg) {
   const ts = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   console.log(`  [${ts}] ${msg}`);
@@ -153,7 +170,7 @@ function createCard(title, type, assigned, status, description) {
   if (fs.existsSync(folderPath)) throw new Error('Card already exists');
   fs.mkdirSync(folderPath, { recursive: true });
 
-  const data = { title, type, status: status || 'todo', assigned, created: today };
+  const data = { title, type, status: status || 'todo', assigned: assigned || gitUser, created: today };
   if (description) data.description = description;
   const body = `# ${title}\n`;
   fs.writeFileSync(path.join(folderPath, 'CARD.md'), serializeFrontmatter(data, body), 'utf-8');
@@ -237,6 +254,12 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   // --- API Routes ---
+
+  if (url.pathname === '/api/whoami' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ user: gitUser }));
+    return;
+  }
 
   if (url.pathname === '/api/cards' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -362,22 +385,44 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
   }, 200);
 });
 
-// Watch backlog/ for IDE-created files (auto-commit)
-let backlogCommitTimer = null;
-const backlogChanges = new Set();
-fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
-  if (!filename || filename.includes('.DS_Store') || syncing) return;
-  backlogChanges.add(filename);
-  clearTimeout(backlogCommitTimer);
-  backlogCommitTimer = setTimeout(() => {
-    const files = [...backlogChanges];
-    backlogChanges.clear();
-    // Derive a meaningful message from the changed paths
-    const slugs = new Set(files.map(f => f.split(path.sep)[0]).filter(Boolean));
-    const msg = slugs.size === 1
-      ? `update ${[...slugs][0]}`
-      : `update ${slugs.size} cards`;
-    gitCommit(msg, ['backlog/']);
+// Watch entire repo for changes (auto-commit)
+let repoCommitTimer = null;
+const repoChanges = new Set();
+fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
+  if (!filename || filename.includes('.DS_Store') || filename.startsWith('.git') || filename.includes('node_modules') || syncing) return;
+  repoChanges.add(filename);
+  clearTimeout(repoCommitTimer);
+  repoCommitTimer = setTimeout(() => {
+    const files = [...repoChanges];
+    repoChanges.clear();
+
+    // Group by top-level directory
+    const byDir = {};
+    for (const f of files) {
+      const parts = f.split(path.sep);
+      const dir = parts[0];
+      const rest = parts.slice(1).join(path.sep);
+      if (!byDir[dir]) byDir[dir] = [];
+      if (rest) byDir[dir].push(rest);
+    }
+
+    const dirs = Object.keys(byDir);
+    let msg;
+    if (dirs.length === 1) {
+      const dir = dirs[0];
+      const inner = byDir[dir];
+      if (inner.length === 0) {
+        msg = `update ${dir}`;
+      } else if (inner.length <= 2) {
+        msg = `${dir}: update ${inner.map(f => path.basename(f)).join(', ')}`;
+      } else {
+        msg = `${dir}: update ${inner.length} files`;
+      }
+    } else {
+      msg = `update ${dirs.join(', ')}`;
+    }
+
+    gitCommit(msg, ['.']);
   }, 5000); // 5s debounce — lets multi-file saves settle
 });
 
@@ -444,7 +489,7 @@ server.listen(PORT, () => {
   console.log(`  │   fluado board                       │`);
   console.log(`  │   http://localhost:${PORT}              │`);
   console.log(`  │   live-reload: ON                    │`);
-  console.log(`  │   auto-commit: backlog/ (5s)         │`);
+  console.log(`  │   auto-commit: repo-wide (5s)        │`);
   console.log(`  │   git sync: push on commit           │`);
   console.log(`  │   git sync: poll remote (5s)         │`);
   console.log(`  │                                      │`);

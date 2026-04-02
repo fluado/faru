@@ -1,5 +1,6 @@
 // --- State ---
 let cards = [];
+let currentUser = '';
 
 
 // --- API ---
@@ -168,6 +169,9 @@ function setupNewCardModal() {
   document.querySelectorAll('.btn-column-add').forEach((btn) => {
     btn.addEventListener('click', () => {
       pendingStatus = btn.dataset.status;
+      if (currentUser) {
+        form.querySelector('select[name="assigned"]').value = currentUser;
+      }
       overlay.classList.add('open');
       form.querySelector('input[name="title"]').focus();
     });
@@ -376,3 +380,6 @@ setupDropZones();
 setupNewCardModal();
 setupDetailModal();
 fetchCards();
+
+// Fetch current git user for auto-assign
+fetch('/api/whoami').then(r => r.json()).then(d => { currentUser = d.user || ''; }).catch(() => {});
