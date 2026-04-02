@@ -213,13 +213,10 @@ function openDetail(card) {
   document.getElementById('detail-created').textContent = card.created || '—';
   document.getElementById('detail-edited').textContent = card.edited || '—';
 
-  // Description (editable)
+  // Description (editable) — stored as literal \n in frontmatter
   const body = document.getElementById('detail-body');
-  if (card.goal) {
-    body.textContent = card.goal;
-  } else {
-    body.textContent = '';
-  }
+  const displayGoal = (card.goal || '').replace(/\\n/g, '\n');
+  body.innerText = displayGoal;
   body.dataset.originalDescription = card.goal || '';
 
   // Progress bar
@@ -319,17 +316,18 @@ function setupDetailModal() {
   // Inline description editing (blur-save)
   const bodyEl = document.getElementById('detail-body');
   bodyEl.addEventListener('blur', () => {
-    const newDesc = bodyEl.textContent.trim();
+    const raw = bodyEl.innerText.trim();
+    const encoded = raw.replace(/\n/g, '\\n');
     const original = bodyEl.dataset.originalDescription;
-    if (currentDetailSlug && newDesc !== original) {
-      bodyEl.dataset.originalDescription = newDesc;
-      updateCard(currentDetailSlug, { description: newDesc });
+    if (currentDetailSlug && encoded !== original) {
+      bodyEl.dataset.originalDescription = encoded;
+      updateCard(currentDetailSlug, { description: encoded });
     }
   });
 
   bodyEl.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      bodyEl.textContent = bodyEl.dataset.originalDescription;
+      bodyEl.innerText = (bodyEl.dataset.originalDescription || '').replace(/\\n/g, '\n');
       bodyEl.blur();
     }
   });
