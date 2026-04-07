@@ -1,5 +1,5 @@
 /*
- * fluado board — Modern Light v2
+ * faru — Modern Light v2
  *
  * Apple/Linear-inspired light theme.
  * Rounded corners (12px), soft tinted shadows, subtle gradients.
@@ -214,7 +214,6 @@ body {
 .card-list.drag-over {
 	background: var(--accent-light);
 }
-
 
 /* Per-column add button */
 .btn-column-add {
@@ -564,7 +563,9 @@ body {
 	border-radius: 6px;
 	padding: 8px 10px;
 	margin: -8px -10px;
-	transition: background var(--transition), box-shadow var(--transition);
+	transition:
+		background var(--transition),
+		box-shadow var(--transition);
 	min-height: 2.4em;
 	cursor: text;
 }
@@ -781,4 +782,3 @@ body {
 	background: var(--red-bg);
 	color: var(--red-text);
 }
-
