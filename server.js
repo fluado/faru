@@ -385,11 +385,20 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
   }, 200);
 });
 
-// Watch entire repo for changes (auto-commit)
+// Watch entire repo for changes (auto-commit + live-reload for backlog)
 let repoCommitTimer = null;
+let repoReloadTimer = null;
 const repoChanges = new Set();
 fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
   if (!filename || filename.includes('.DS_Store') || filename.startsWith('.git') || filename.includes('node_modules') || syncing) return;
+  // Notify browsers when backlog files change (card status edits, etc.)
+  if (filename.startsWith('backlog' + path.sep) || filename.startsWith('backlog/')) {
+    clearTimeout(repoReloadTimer);
+    repoReloadTimer = setTimeout(() => {
+      log(`♻  backlog change detected (${path.basename(filename)}) — refreshing boards`);
+      notifyLiveReload();
+    }, 300);
+  }
   repoChanges.add(filename);
   clearTimeout(repoCommitTimer);
   repoCommitTimer = setTimeout(() => {
