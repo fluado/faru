@@ -102,6 +102,16 @@ body {
 	font-weight: 700;
 	letter-spacing: -0.02em;
 	color: var(--text);
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+
+.logo-icon {
+	width: 22px;
+	height: 22px;
+	display: block;
+	flex-shrink: 0;
 }
 
 .logo-accent {
