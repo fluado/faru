@@ -1,49 +1,13 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#D4AAFF"/>
+      <stop offset="0%" stop-color="#C8A0FF"/>
       <stop offset="100%" stop-color="#7B2FF7"/>
     </linearGradient>
-
-    <!-- Inner glow overlay: bright white center radiating outward -->
-    <radialGradient id="innerGlow" cx="35%" cy="38%" r="55%" gradientUnits="objectBoundingBox">
-      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="1.0"/>
-      <stop offset="40%"  stop-color="#FFFFFF" stop-opacity="0.60"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
-    </radialGradient>
-
-    <!-- Subtle outer halo — only blurs the card, merged behind it -->
-    <filter id="halo" x="-18%" y="-18%" width="136%" height="136%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
-
-  <!-- Background -->
-  <rect width="1024" height="1024" rx="100" fill="url(#bg)"/>
-
-  <!--
-    Card shape path (same perspective trapezoid):
-    TL(82,300) TR(942,220) BR(942,650) BL(82,780), r≈45
-  -->
-  <g filter="url(#halo)">
-    <!-- Solid white base — gives the card substance -->
-    <path d="
-      M 127,296 L 897,224 Q 942,220 942,265
-      L 942,605 Q 942,650 897,657
-      L 127,773 Q 82,780 82,735
-      L 82,345  Q 82,300 127,296 Z
-    " fill="white" opacity="0.60"/>
-
-    <!-- Inner glow overlay on top -->
-    <path d="
-      M 127,296 L 897,224 Q 942,220 942,265
-      L 942,605 Q 942,650 897,657
-      L 127,773 Q 82,780 82,735
-      L 82,345  Q 82,300 127,296 Z
-    " fill="url(#innerGlow)"/>
-  </g>
+  <rect width="1024" height="1024" rx="120" fill="url(#bg)"/>
+  <!-- Back card (ghost) -->
+  <rect x="200" y="420" width="660" height="290" rx="55" fill="white" opacity="0.40" transform="rotate(7, 512, 512)"/>
+  <!-- Front card -->
+  <rect x="152" y="365" width="720" height="295" rx="56" fill="white" opacity="0.90"/>
 </svg>
