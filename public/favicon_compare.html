@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { background: #111; display: flex; gap: 48px; padding: 60px; font-family: -apple-system, sans-serif; align-items: flex-start; justify-content: center; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .label { color: #aaa; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .small-row { display: flex; align-items: center; gap: 10px; }
+  .small-label { color: #555; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- A: Tilted -->
+<div class="item">
+  <svg width="200" height="200" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bgA" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/>
+      </linearGradient>
+    </defs>
+    <rect width="1024" height="1024" rx="120" fill="url(#bgA)"/>
+    <rect x="152" y="352" width="720" height="320" rx="60" fill="white" opacity="0.90" transform="rotate(-9, 512, 512)"/>
+  </svg>
+  <div class="small-row">
+    <svg width="32" height="32" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="bgA2" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/></linearGradient></defs>
+      <rect width="1024" height="1024" rx="120" fill="url(#bgA2)"/>
+      <rect x="152" y="352" width="720" height="320" rx="60" fill="white" opacity="0.90" transform="rotate(-9, 512, 512)"/>
+    </svg>
+    <svg width="16" height="16" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="bgA3" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/></linearGradient></defs>
+      <rect width="1024" height="1024" rx="120" fill="url(#bgA3)"/>
+      <rect x="152" y="352" width="720" height="320" rx="60" fill="white" opacity="0.90" transform="rotate(-9, 512, 512)"/>
+    </svg>
+    <div class="small-label">32 / 16px</div>
+  </div>
+  <div class="label">A — Tilted</div>
+</div>
+
+<!-- B: Ticket notch -->
+<div class="item">
+  <svg width="200" height="200" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bgB" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/>
+      </linearGradient>
+      <mask id="ticketB">
+        <rect x="132" y="332" width="760" height="360" rx="60" fill="white"/>
+        <circle cx="132" cy="512" r="50" fill="black"/>
+        <circle cx="892" cy="512" r="50" fill="black"/>
+      </mask>
+    </defs>
+    <rect width="1024" height="1024" rx="120" fill="url(#bgB)"/>
+    <rect x="0" y="0" width="1024" height="1024" fill="white" opacity="0.90" mask="url(#ticketB)"/>
+  </svg>
+  <div class="small-row">
+    <svg width="32" height="32" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgB2" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/></linearGradient>
+        <mask id="ticketB2"><rect x="132" y="332" width="760" height="360" rx="60" fill="white"/><circle cx="132" cy="512" r="50" fill="black"/><circle cx="892" cy="512" r="50" fill="black"/></mask>
+      </defs>
+      <rect width="1024" height="1024" rx="120" fill="url(#bgB2)"/>
+      <rect x="0" y="0" width="1024" height="1024" fill="white" opacity="0.90" mask="url(#ticketB2)"/>
+    </svg>
+    <svg width="16" height="16" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgB3" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/></linearGradient>
+        <mask id="ticketB3"><rect x="132" y="332" width="760" height="360" rx="60" fill="white"/><circle cx="132" cy="512" r="50" fill="black"/><circle cx="892" cy="512" r="50" fill="black"/></mask>
+      </defs>
+      <rect width="1024" height="1024" rx="120" fill="url(#bgB3)"/>
+      <rect x="0" y="0" width="1024" height="1024" fill="white" opacity="0.90" mask="url(#ticketB3)"/>
+    </svg>
+    <div class="small-label">32 / 16px</div>
+  </div>
+  <div class="label">B — Ticket</div>
+</div>
+
+<!-- C: Stacked -->
+<div class="item">
+  <svg width="200" height="200" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bgC" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/>
+      </linearGradient>
+    </defs>
+    <rect width="1024" height="1024" rx="120" fill="url(#bgC)"/>
+    <rect x="200" y="420" width="660" height="290" rx="55" fill="white" opacity="0.40" transform="rotate(7, 512, 512)"/>
+    <rect x="152" y="365" width="720" height="295" rx="56" fill="white" opacity="0.90"/>
+  </svg>
+  <div class="small-row">
+    <svg width="32" height="32" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="bgC2" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/></linearGradient></defs>
+      <rect width="1024" height="1024" rx="120" fill="url(#bgC2)"/>
+      <rect x="200" y="420" width="660" height="290" rx="55" fill="white" opacity="0.40" transform="rotate(7, 512, 512)"/>
+      <rect x="152" y="365" width="720" height="295" rx="56" fill="white" opacity="0.90"/>
+    </svg>
+    <svg width="16" height="16" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="bgC3" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#C8A0FF"/><stop offset="100%" stop-color="#7B2FF7"/></linearGradient></defs>
+      <rect width="1024" height="1024" rx="120" fill="url(#bgC3)"/>
+      <rect x="200" y="420" width="660" height="290" rx="55" fill="white" opacity="0.40" transform="rotate(7, 512, 512)"/>
+      <rect x="152" y="365" width="720" height="295" rx="56" fill="white" opacity="0.90"/>
+    </svg>
+    <div class="small-label">32 / 16px</div>
+  </div>
+  <div class="label">C — Stacked</div>
+</div>
+
+</body>
+</html>
