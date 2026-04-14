@@ -391,3 +391,20 @@ fetch('/api/config')
     }
   })
   .catch(() => {});
+
+// Fetch assignees and populate assignee selects
+fetch('/api/assignees')
+  .then(r => r.json())
+  .then(assignees => {
+    const selects = [document.getElementById('new-card-assigned'), document.getElementById('detail-assigned')];
+    for (const sel of selects) {
+      // Keep the static "Unassigned" option, append live values
+      for (const name of assignees) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        sel.appendChild(opt);
+      }
+    }
+  })
+  .catch(() => {});
