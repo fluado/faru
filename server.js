@@ -227,6 +227,7 @@ function archiveCard(slug) {
 // --- Git Helpers ---
 
 function gitCommit(message, paths) {
+	if (!config.autoSync) return;
 	try {
 		for (const p of paths) {
 			execFileSync("git", ["add", p], { cwd: DOCS_ROOT, stdio: "pipe" });
@@ -597,29 +598,30 @@ function checkRemote() {
 	);
 }
 
-setInterval(checkRemote, SYNC_INTERVAL);
+if (config.autoSync) {
+	setInterval(checkRemote, SYNC_INTERVAL);
 
-// Initial push on startup (flush any unpushed local commits)
-execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
-	if (err) {
-		log(`⚠  initial push failed: ${stderr.trim() || err.message}`);
-		return;
-	}
-	const result = stderr.trim();
-	if (result && !result.includes("Everything up-to-date")) {
-		log(`⬆  initial push: ${result}`);
-	}
-});
+	// Initial push on startup (flush any unpushed local commits)
+	execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
+		if (err) {
+			log(`⚠  initial push failed: ${stderr.trim() || err.message}`);
+			return;
+		}
+		const result = stderr.trim();
+		if (result && !result.includes("Everything up-to-date")) {
+			log(`⬆  initial push: ${result}`);
+		}
+	});
+}
 
+const syncLabel = config.autoSync ? 'ON' : 'OFF';
 server.listen(PORT, () => {
 	console.log(`\n  ┌──────────────────────────────────────┐`);
 	console.log(`  │                                      │`);
 	console.log(`  │   faru                               │`);
 	console.log(`  │   http://localhost:${PORT}              │`);
 	console.log(`  │   live-reload: ON                    │`);
-	console.log(`  │   auto-commit: repo-wide (5s)        │`);
-	console.log(`  │   git sync: push on commit           │`);
-	console.log(`  │   git sync: poll remote (5s)         │`);
+	console.log(`  │   git sync: ${syncLabel.padEnd(25)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
 });
