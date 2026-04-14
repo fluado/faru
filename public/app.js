@@ -54,16 +54,7 @@ async function openCard(slug) {
 
 // --- Rendering ---
 
-function badgeClass(type) {
-  const map = {
-    product: 'badge-product',
-    prospect: 'badge-prospect',
-    legal: 'badge-legal',
-    ops: 'badge-ops',
-    infra: 'badge-infra',
-  };
-  return map[type] || 'badge-product';
-}
+
 
 function renderCard(card) {
   const el = document.createElement('div');
@@ -79,7 +70,7 @@ function renderCard(card) {
   el.innerHTML = `
     <div class="card-title">${escapeHtml(card.title)}</div>
     <div class="card-meta">
-      <span class="badge ${badgeClass(card.type)}">${card.type}</span>
+      <span class="category ${card.type}">${card.type}</span>
       ${date}
       ${assignee}
     </div>
@@ -383,3 +374,20 @@ fetchCards();
 
 // Fetch current git user for auto-assign
 fetch('/api/whoami').then(r => r.json()).then(d => { currentUser = d.user || ''; }).catch(() => {});
+
+// Fetch config and populate type selects
+fetch('/api/config')
+  .then(r => r.json())
+  .then(cfg => {
+    const selects = [document.getElementById('new-card-type'), document.getElementById('detail-type')];
+    for (const sel of selects) {
+      sel.innerHTML = '';
+      for (const cat of cfg.cardCategories) {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+        sel.appendChild(opt);
+      }
+    }
+  })
+  .catch(() => {});
