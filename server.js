@@ -3,9 +3,20 @@ const fs = require("fs");
 const path = require("path");
 const { execFile, execFileSync } = require("child_process");
 
-const PORT = 3333;
 const DOCS_ROOT = path.resolve(__dirname, "..");
-const BACKLOG_DIR = path.join(DOCS_ROOT, "backlog");
+
+function loadConfig() {
+	const configPath = path.join(DOCS_ROOT, "faru.config.json");
+	if (!fs.existsSync(configPath)) {
+		console.error(`\n  ✖  faru.config.json not found at ${configPath}\n`);
+		process.exit(1);
+	}
+	return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+}
+
+const config = loadConfig();
+const PORT = config.port;
+const BACKLOG_DIR = path.resolve(DOCS_ROOT, config.backlogDir);
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, "archive");
 
 // Map git user.name → board assignee slug
@@ -306,6 +317,17 @@ const server = http.createServer(async (req, res) => {
 	if (url.pathname === "/api/whoami" && req.method === "GET") {
 		res.writeHead(200, { "Content-Type": "application/json" });
 		res.end(JSON.stringify({ user: gitUser }));
+		return;
+	}
+
+	if (url.pathname === "/api/config" && req.method === "GET") {
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(
+			JSON.stringify({
+				cardCategories: config.cardCategories,
+				port: config.port,
+			}),
+		);
 		return;
 	}
 
