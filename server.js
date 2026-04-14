@@ -19,19 +19,12 @@ const PORT = config.port;
 const BACKLOG_DIR = path.resolve(DOCS_ROOT, config.backlogDir);
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, "archive");
 
-// Map git user.name → board assignee slug
-const GIT_USER_MAP = {
-	yvg: "yves",
-	"Arbo von Monkiewitsch": "arbo",
-};
-
 function resolveGitUser() {
 	try {
-		const raw = execFileSync("git", ["config", "user.name"], {
+		return execFileSync("git", ["config", "user.name"], {
 			cwd: DOCS_ROOT,
 			encoding: "utf-8",
-		}).trim();
-		return GIT_USER_MAP[raw] || raw.toLowerCase();
+		}).trim().toLowerCase();
 	} catch (_) {
 		return "";
 	}
@@ -329,6 +322,19 @@ const server = http.createServer(async (req, res) => {
 				port: config.port,
 			}),
 		);
+		return;
+	}
+
+	if (url.pathname === "/api/assignees" && req.method === "GET") {
+		const allCards = scanCards();
+		const set = new Set();
+		if (gitUser) set.add(gitUser);
+		for (const c of allCards) {
+			if (c.assigned) set.add(c.assigned);
+		}
+		const assignees = [...set].sort();
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify(assignees));
 		return;
 	}
 
