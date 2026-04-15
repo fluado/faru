@@ -431,7 +431,7 @@ function setupDetailModal() {
       <div class="comment">
         <span class="comment-author">${escapeHtml(currentUser || 'you')}</span>
         <span class="comment-date">· ${dateStr}</span>
-        <div class="comment-text">${escapeHtml(text)}</div>
+        <div class="comment-text">${linkify(text)}</div>
       </div>
     `;
     commentsEl.scrollTop = commentsEl.scrollHeight;
