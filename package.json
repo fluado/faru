@@ -1,0 +1,10 @@
+{
+	"name": "faru",
+	"version": "0.1.0",
+	"description": "Git-native kanban board. Cards are markdown files.",
+	"bin": {
+		"faru": "./server.js"
+	},
+	"license": "MIT",
+	"repository": "fluado/faru"
+}

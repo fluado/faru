@@ -1,9 +1,10 @@
+#!/usr/bin/env node
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { execFile, execFileSync } = require("child_process");
 
-const DOCS_ROOT = path.resolve(__dirname, "..");
+const DOCS_ROOT = process.cwd();
 
 function loadConfig() {
 	const configPath = path.join(DOCS_ROOT, "faru.config.json");
