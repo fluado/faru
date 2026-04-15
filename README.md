@@ -50,6 +50,20 @@ Each card folder can contain multiple files. All files are listed in the card de
 
 Structure the rest however you want.
 
+### Milestones & Progress
+
+If your card folder contains a `PREFIX-milestones.md` file with `## PREFIX-N:` headings, faru tracks progress automatically:
+
+```
+backlog/2026-04-14-INFRA-MY-PROJECT/
+  VX-milestones.md      ← defines VX-1, VX-2, VX-3
+  VX-1-report.md        ← VX-1 is done
+  VX-2-report.md        ← VX-2 is done
+  CARD.md
+```
+
+The board shows `☑ 2/3` on the card tile. A milestone is "done" when a matching `PREFIX-N-report.md` file exists in the same folder. You can add milestones from the card detail view — they append to the milestones file.
+
 ## Config
 
 Create a `faru.config.json` in your project root (all fields required):
