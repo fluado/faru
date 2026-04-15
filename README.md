@@ -114,10 +114,16 @@ Cards are just markdown folders. Any tool that can write files can create them.
 ## Features
 
 - **Zero dependencies** — single `server.js`, no `node_modules`
+- **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
+- **Comments** — add comments from the card detail view. Stored as `## Comments` in `CARD.md`, visible as a badge on card tiles
+- **Milestones from UI** — add new milestones directly from the card detail. Auto-creates the milestones file if one doesn't exist yet
+- **Archive** — archive cards from the detail view. Toggle the archive view to browse archived cards. Auto-archive sweeps `done` cards older than N days (configurable)
+- **Open in editor** — click any file in the card sidebar to open it in your default editor
 - **Live reload** — edit cards in your editor, board updates instantly
-- **Git sync** — auto-commit on change, push on commit, poll remote for updates
+- **Git sync** — auto-commit on change, push on commit, poll remote every 5s and pull when changed
 - **Drag & drop** — move cards between columns
-- **Inline editing** — click titles and descriptions to edit
+- **Inline editing** — click titles and descriptions to edit in-place
+- **Assignee detection** — reads `git config user.name`, populates assignee dropdowns from existing cards
 - **Cross-platform** — macOS, Windows, Linux
 
 ## Philosophy
