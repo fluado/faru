@@ -1,12 +1,14 @@
 // --- State ---
 let cards = [];
 let currentUser = '';
+let isArchiveView = false;
 
 
 // --- API ---
 
 async function fetchCards() {
-  const res = await fetch('/api/cards');
+  const url = isArchiveView ? '/api/cards?archive=1' : '/api/cards';
+  const res = await fetch(url);
   cards = await res.json();
   render();
 }
@@ -467,6 +469,19 @@ document.addEventListener('keydown', (e) => {
 setupDropZones();
 setupNewCardModal();
 setupDetailModal();
+
+document.getElementById('btn-toggle-archive')?.addEventListener('click', (e) => {
+  isArchiveView = !isArchiveView;
+  if (isArchiveView) {
+    document.body.classList.add('archive-mode');
+    e.target.textContent = 'Exit Archive';
+  } else {
+    document.body.classList.remove('archive-mode');
+    e.target.textContent = 'Archive';
+  }
+  fetchCards();
+});
+
 fetchCards();
 
 // Fetch current git user for auto-assign
