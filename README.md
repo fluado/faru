@@ -6,7 +6,6 @@
 
 <p align="center">Git-native kanban board. Cards are markdown files.</p>
 
-![faru board](https://raw.githubusercontent.com/fluado/faru/main/screenshot.png)
 
 ## Quick Start
 
