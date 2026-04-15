@@ -425,7 +425,10 @@ const server = http.createServer(async (req, res) => {
 				target = canonical || folderPath;
 			}
 
-			execFile("open", [target], (err) => {
+			const opener = process.platform === "darwin" ? "open"
+				: process.platform === "win32" ? "start"
+				: "xdg-open";
+			execFile(opener, [target], (err) => {
 				if (err) console.error("Failed to open:", err.message);
 			});
 
