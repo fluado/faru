@@ -131,6 +131,12 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function linkify(str) {
+  return escapeHtml(str).replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener">$1</a>'
+  );
+}
 
 
 // --- Drag & Drop ---
@@ -288,7 +294,7 @@ function openDetail(card) {
       <div class="comment">
         <span class="comment-author">${escapeHtml(c.author)}</span>
         <span class="comment-date">· ${escapeHtml(c.date)}</span>
-        <div class="comment-text">${escapeHtml(c.text)}</div>
+        <div class="comment-text">${linkify(c.text)}</div>
       </div>
     `).join('');
     // Show input when comments exist
