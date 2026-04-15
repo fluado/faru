@@ -128,6 +128,10 @@ Cards are just markdown folders. Any tool that can write files can create them.
 
 ## Philosophy
 
+The board is a view layer. Your editor is the workspace.
+
+Cards are markdown files. You can edit them in VS Code, Vim, or whatever you use — the board picks up changes instantly via live reload. The card detail view handles quick metadata tweaks (status, assignee, type), but for anything beyond that, click "Open in Editor" and you're in your real environment with full editing power, search, git history, and AI assistance. The board doesn't try to be an editor. It shows you the state of work and gets out of the way.
+
 faru has 3 columns: Todo, WIP, Done. You can't add more. This is intentional.
 
 More columns means more places for work to stall. "In Review," "Blocked," "Ready for QA" are symptoms, not workflow stages. If something is blocked, fix the blocker or move it back to Todo. If it's in review, it's still WIP.
