@@ -939,3 +939,43 @@ body {
 	gap: 8px;
 	align-items: stretch;
 }
+
+/* === Archive Mode === */
+
+.header-right {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-left: auto;
+}
+
+.btn-ghost {
+	font-family: var(--font);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	padding: 7px 14px;
+	border-radius: 8px;
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all var(--transition);
+}
+
+.btn-ghost:hover {
+	background: var(--surface-active);
+	color: var(--text);
+}
+
+body.archive-mode {
+	background: #e5e5ea;
+}
+
+body.archive-mode .board {
+	opacity: 0.95;
+	filter: grayscale(15%);
+}
+
+body.archive-mode .btn-column-add {
+	display: none !important;
+}
