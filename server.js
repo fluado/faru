@@ -244,7 +244,7 @@ function addComment(slug, text) {
 	const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderPath);
 	if (!target) throw new Error("No markdown file found");
 
-	const content = fs.readFileSync(canonical, "utf-8");
+	const content = fs.readFileSync(target, "utf-8");
 	const now = new Date();
 	const date = now.toISOString().slice(0, 10);
 	const time = now.toTimeString().slice(0, 5);
@@ -257,7 +257,7 @@ function addComment(slug, text) {
 	} else {
 		updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
 	}
-	fs.writeFileSync(canonical, updated, "utf-8");
+	fs.writeFileSync(target, updated, "utf-8");
 	return { author, date: `${date} ${time}`, text };
 }
 
