@@ -246,6 +246,45 @@ function archiveCard(slug) {
 	fs.renameSync(src, path.join(ARCHIVE_DIR, slug));
 }
 
+function autoArchiveSweep() {
+	const days = config.archiveDoneAfterDays;
+	if (!days) return;
+	const cutoff = Date.now() - days * 86400000;
+	if (!fs.existsSync(BACKLOG_DIR)) return;
+	const archived = [];
+
+	for (const entry of fs.readdirSync(BACKLOG_DIR)) {
+		if (entry === "archive" || entry.startsWith(".")) continue;
+		const folderPath = path.join(BACKLOG_DIR, entry);
+		if (!fs.statSync(folderPath).isDirectory()) continue;
+
+		const canonical = findCanonicalFile(folderPath);
+		if (!canonical) continue;
+
+		const content = fs.readFileSync(canonical, "utf-8");
+		const { data } = parseFrontmatter(content);
+		if (data.status !== "done" || !data.edited) continue;
+
+		const editedMs = new Date(data.edited).getTime();
+		if (isNaN(editedMs) || editedMs > cutoff) continue;
+
+		try {
+			archiveCard(entry);
+			archived.push(entry);
+			log(`📦 auto-archived: ${entry}`);
+		} catch (_) { /* skip */ }
+	}
+
+	if (archived.length > 0) {
+		const paths = archived.flatMap((s) => [
+			`backlog/${s}`,
+			`backlog/archive/${s}`,
+		]);
+		gitCommit(`auto-archive ${archived.length} done card${archived.length === 1 ? "" : "s"}`, paths);
+		notifyLiveReload();
+	}
+}
+
 function addComment(slug, text) {
 	const folderPath = path.join(BACKLOG_DIR, slug);
 	if (!fs.existsSync(folderPath)) throw new Error("Card not found");
@@ -698,6 +737,9 @@ if (config.autoSync) {
 }
 
 const syncLabel = config.autoSync ? 'ON' : 'OFF';
+const archiveLabel = config.archiveDoneAfterDays
+	? `${config.archiveDoneAfterDays}d`
+	: 'OFF';
 server.listen(PORT, () => {
 	console.log(`\n  ┌──────────────────────────────────────┐`);
 	console.log(`  │                                      │`);
@@ -705,6 +747,12 @@ server.listen(PORT, () => {
 	console.log(`  │   http://localhost:${PORT}              │`);
 	console.log(`  │   live-reload: ON                    │`);
 	console.log(`  │   git sync: ${syncLabel.padEnd(25)}│`);
+	console.log(`  │   auto-archive: ${archiveLabel.padEnd(19)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
+
+	if (config.archiveDoneAfterDays) {
+		autoArchiveSweep();
+		setInterval(autoArchiveSweep, 12 * 60 * 60 * 1000);
+	}
 });

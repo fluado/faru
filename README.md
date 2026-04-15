@@ -59,7 +59,8 @@ Create a `faru.config.json` in your project root (all fields required):
   "backlogDir": "./backlog",
   "port": 3333,
   "cardCategories": ["product", "ops", "bug"],
-  "autoSync": true
+  "autoSync": true,
+  "archiveDoneAfterDays": 14
 }
 ```
 
@@ -69,6 +70,7 @@ Create a `faru.config.json` in your project root (all fields required):
 | `port` | Server port |
 | `cardCategories` | Category labels for the type dropdown |
 | `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
+| `archiveDoneAfterDays` | (Optional) Automatically move `done` cards edited more than N days ago to archive. Runs on server start and every 12 hours. |
 
 ## Creating Cards
 
