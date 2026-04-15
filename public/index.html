@@ -83,13 +83,14 @@
       <div class="detail-primary">
         <div class="modal-header">
           <h3 id="detail-title" contenteditable="true"></h3>
+          <button class="btn btn-open" id="detail-open">Open in Editor →</button>
           <button class="modal-close" id="detail-close">&times;</button>
         </div>
       </div>
 
       <!-- Side-by-Side: Description + Sidebar -->
       <div class="detail-split">
-        <!-- Left: Description + Files -->
+        <!-- Left: Description + Files + Comments -->
         <div class="detail-left">
           <div class="detail-description-zone">
             <label class="detail-section-label">Description</label>
@@ -99,13 +100,13 @@
           <div class="detail-files-zone">
             <div class="detail-files" id="detail-files"></div>
           </div>
-          <div class="detail-comments-zone">
-            <label class="detail-section-label">Comments</label>
+          <div class="detail-comments-zone" id="detail-comments-zone">
             <div class="detail-comments" id="detail-comments"></div>
-            <div class="detail-comment-input">
+            <div class="detail-comment-input" id="detail-comment-input" style="display:none;">
               <textarea id="comment-input" rows="1" placeholder="Add a comment…"></textarea>
               <button class="btn btn-comment" id="comment-submit" disabled>Comment</button>
             </div>
+            <button class="btn-add-comment" id="add-comment-toggle">+ Add comment</button>
           </div>
         </div>
 
@@ -138,13 +139,9 @@
             <span class="detail-sidebar-label">Edited</span>
             <span class="detail-sidebar-value" id="detail-edited">—</span>
           </div>
+          <div class="detail-sidebar-spacer"></div>
+          <button class="btn btn-danger-subtle" id="detail-archive">Archive</button>
         </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="detail-actions-zone">
-        <button class="btn btn-danger-subtle" id="detail-archive">Archive</button>
-        <button class="btn btn-open" id="detail-open">Open in Editor →</button>
       </div>
     </div>
   </div>
