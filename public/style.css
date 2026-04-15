@@ -690,6 +690,122 @@ body {
 	background: var(--accent-muted);
 }
 
+/* Comments zone */
+.detail-comments-zone {
+	margin-top: 16px;
+}
+
+.detail-comments {
+	max-height: 200px;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.detail-comments::-webkit-scrollbar {
+	width: 4px;
+}
+
+.detail-comments::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.detail-comments::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 4px;
+}
+
+.detail-comments:empty {
+	display: none;
+}
+
+.detail-comments:empty + .detail-comment-input {
+	margin-top: 4px;
+}
+
+.comment {
+	font-size: 0.8125rem;
+	line-height: 1.45;
+}
+
+.comment-author {
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.comment-date {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	margin-left: 2px;
+}
+
+.comment-text {
+	color: var(--text-muted);
+	margin-top: 1px;
+}
+
+.detail-comment-input {
+	display: flex;
+	gap: 6px;
+	align-items: flex-start;
+}
+
+.detail-comment-input textarea {
+	flex: 1;
+	font-family: var(--font);
+	font-size: 0.8125rem;
+	padding: 8px 10px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--surface);
+	color: var(--text);
+	resize: none;
+	outline: none;
+	transition: all var(--transition);
+	min-height: 34px;
+	max-height: 80px;
+}
+
+.detail-comment-input textarea:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.btn-comment {
+	font-family: var(--font);
+	font-size: 0.75rem;
+	font-weight: 500;
+	padding: 8px 12px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--text);
+	cursor: pointer;
+	transition: all var(--transition);
+	white-space: nowrap;
+}
+
+.btn-comment:hover:not(:disabled) {
+	background: var(--bg);
+}
+
+.btn-comment:disabled {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+/* Card comment count badge */
+.card-comment-count {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	margin-left: auto;
+}
+
 /* Right column: Metadata sidebar */
 .detail-sidebar {
 	flex: 1;
