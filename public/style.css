@@ -806,7 +806,11 @@ body {
 	margin-left: auto;
 }
 
-/* Right column: Metadata sidebar */
+/* Sidebar spacer + Archive */
+.detail-sidebar-spacer {
+	flex: 1;
+}
+
 .detail-sidebar {
 	flex: 1;
 	background: var(--bg);
@@ -861,29 +865,21 @@ body {
 	box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
-/* Zone 3: Actions */
-.detail-actions-zone {
-	padding: 14px 24px;
-	border-top: 1px solid var(--border);
-	background: var(--surface);
-	display: flex;
-	gap: 8px;
-	align-items: center;
-	justify-content: space-between;
-}
-
+/* Open in Editor — title bar */
 .btn-open {
 	background: var(--accent);
 	border: none;
 	color: #fff;
-	font-size: 0.8125rem;
+	font-size: 0.75rem;
 	font-weight: 600;
-	padding: 8px 18px;
-	border-radius: 8px;
-	text-align: center;
+	padding: 6px 14px;
+	border-radius: 6px;
 	cursor: pointer;
 	transition: all var(--transition);
 	box-shadow: 0 1px 3px rgba(124, 58, 237, 0.25);
+	white-space: nowrap;
+	margin-left: auto;
+	flex-shrink: 0;
 }
 
 .btn-open:hover {
