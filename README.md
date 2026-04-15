@@ -13,7 +13,7 @@ Built for teams where agents do the work and humans steer. Agents create cards v
 ## Quick Start
 
 ```bash
-npx faru
+npx github:fluado/faru
 ```
 
 That's it. Faru reads your `backlog/` directory, parses YAML frontmatter from markdown files, and renders a kanban board with three columns: **Todo**, **WIP**, **Done**.
