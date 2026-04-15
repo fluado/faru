@@ -240,8 +240,9 @@ function archiveCard(slug) {
 function addComment(slug, text) {
 	const folderPath = path.join(BACKLOG_DIR, slug);
 	if (!fs.existsSync(folderPath)) throw new Error("Card not found");
-	const canonical = findCanonicalFile(folderPath);
-	if (!canonical) throw new Error("No canonical file found");
+	const cardMd = path.join(folderPath, "CARD.md");
+	const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderPath);
+	if (!target) throw new Error("No markdown file found");
 
 	const content = fs.readFileSync(canonical, "utf-8");
 	const now = new Date();
