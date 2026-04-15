@@ -205,6 +205,13 @@ function updateCard(slug, updates) {
 	const { data, body } = parseFrontmatter(content);
 	Object.assign(data, updates);
 	data.edited = new Date().toISOString().slice(0, 10);
+	
+	if (data.status === "done") {
+		data.completed = data.completed || data.edited;
+	} else if (data.completed !== undefined) {
+		delete data.completed;
+	}
+
 	fs.writeFileSync(canonical, serializeFrontmatter(data, body), "utf-8");
 	return data;
 }
@@ -223,12 +230,17 @@ function createCard(title, type, assigned, status, description) {
 
 	const data = {
 		title,
-		type,
+		type: typePart.toLowerCase(),
 		status: status || "todo",
-		assigned: assigned || gitUser,
+		assigned: assigned || "",
 		created: today,
+		edited: today,
 	};
-	if (description) data.description = description;
+	
+	if (data.status === "done") {
+		data.completed = today;
+	}
+
 	const body = `# ${title}\n`;
 	fs.writeFileSync(
 		path.join(folderPath, "CARD.md"),
@@ -263,19 +275,11 @@ function autoArchiveSweep() {
 
 		const content = fs.readFileSync(canonical, "utf-8");
 		const { data } = parseFrontmatter(content);
-		if (data.status !== "done") continue;
+		if (data.status !== "done" || !data.completed) continue;
 
-		let lastActivityMs;
-		if (data.edited) {
-			lastActivityMs = new Date(data.edited).getTime();
-		}
+		const completedMs = new Date(data.completed).getTime();
 		
-		// Fallback to file mtime if frontmatter edited date is missing or invalid
-		if (!lastActivityMs || isNaN(lastActivityMs)) {
-			lastActivityMs = fs.statSync(canonical).mtimeMs;
-		}
-
-		if (lastActivityMs > cutoff) continue;
+		if (isNaN(completedMs) || completedMs > cutoff) continue;
 
 		try {
 			archiveCard(entry);
