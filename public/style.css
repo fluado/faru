@@ -882,21 +882,20 @@ body {
 	box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
-/* Open in Editor — title bar */
+/* Open in Editor — sidebar */
 .btn-open {
 	background: var(--accent);
 	border: none;
 	color: #fff;
-	font-size: 0.75rem;
+	font-size: 0.8125rem;
 	font-weight: 600;
-	padding: 6px 14px;
-	border-radius: 6px;
+	padding: 8px 18px;
+	border-radius: 8px;
+	text-align: center;
 	cursor: pointer;
 	transition: all var(--transition);
 	box-shadow: 0 1px 3px rgba(124, 58, 237, 0.25);
-	white-space: nowrap;
-	margin-left: auto;
-	flex-shrink: 0;
+	width: 100%;
 }
 
 .btn-open:hover {
@@ -922,4 +921,12 @@ body {
 .btn-danger-subtle:hover {
 	background: var(--red-bg);
 	color: var(--red-text);
+}
+
+/* Sidebar actions container */
+.detail-sidebar-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: stretch;
 }
