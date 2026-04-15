@@ -546,10 +546,10 @@ body {
 /* Left column: Description + Files */
 .detail-left {
 	flex: 2;
-	padding: 18px 24px;
+	padding: 18px 24px 10px;
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 12px;
 	min-width: 0;
 }
 
@@ -692,7 +692,7 @@ body {
 
 /* Comments zone */
 .detail-comments-zone {
-	margin-top: 8px;
+	margin-top: 0;
 }
 
 .detail-comments {
