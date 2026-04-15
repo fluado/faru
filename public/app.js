@@ -82,12 +82,17 @@ function renderCard(card) {
     ? `<span class="card-comment-count">💬 ${card.commentCount}</span>`
     : '';
 
+  const milestoneBadge = card.milestoneProgress
+    ? `<span class="card-milestone-count">☑ ${card.milestoneProgress.done}/${card.milestoneProgress.total}</span>`
+    : '';
+
   el.innerHTML = `
     <div class="card-title">${escapeHtml(card.title)}</div>
     <div class="card-meta">
       <span class="category ${card.type}">${card.type}</span>
       ${date}
       ${assignee}
+      ${milestoneBadge}
       ${commentBadge}
     </div>
   `;
@@ -236,18 +241,14 @@ function openDetail(card) {
   body.innerText = displayGoal;
   body.dataset.originalDescription = card.goal || '';
 
-  // Progress bar
+  // Progress bar — milestone-based when available, report-count fallback
   const progress = document.getElementById('detail-progress');
-  const reportCount = card.files
-    ? card.files.filter((f) => f.toLowerCase().includes('report')).length
-    : 0;
-
-  if (reportCount > 0) {
-    const totalEstimate = Math.max(reportCount, 3);
-    const pct = Math.min(100, Math.round((reportCount / totalEstimate) * 100));
+  if (card.milestoneProgress) {
+    const mp = card.milestoneProgress;
+    const pct = Math.round((mp.done / mp.total) * 100);
     progress.innerHTML = `
       <div class="detail-progress-label">
-        <span>${reportCount} report${reportCount === 1 ? '' : 's'} completed</span>
+        <span>${mp.prefix}: ${mp.done}/${mp.total} milestones</span>
         <span>${pct}%</span>
       </div>
       <div class="detail-progress-bar">
@@ -255,8 +256,50 @@ function openDetail(card) {
       </div>
     `;
   } else {
-    progress.innerHTML = '';
+    const reportCount = card.files
+      ? card.files.filter((f) => f.toLowerCase().includes('report')).length
+      : 0;
+    if (reportCount > 0) {
+      const totalEstimate = Math.max(reportCount, 3);
+      const pct = Math.min(100, Math.round((reportCount / totalEstimate) * 100));
+      progress.innerHTML = `
+        <div class="detail-progress-label">
+          <span>${reportCount} report${reportCount === 1 ? '' : 's'} completed</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="detail-progress-bar">
+          <div class="detail-progress-fill" style="width:${pct}%"></div>
+        </div>
+      `;
+    } else {
+      progress.innerHTML = '';
+    }
   }
+
+  // Milestones checklist
+  const milestonesEl = document.getElementById('detail-milestones');
+  const milestoneInputZone = document.getElementById('detail-milestone-input');
+  const addMilestoneToggle = document.getElementById('add-milestone-toggle');
+  const prefixInput = document.getElementById('milestone-prefix-input');
+
+  if (card.milestones && card.milestones.length > 0) {
+    milestonesEl.innerHTML = card.milestones.map(m => `
+      <div class="detail-milestone-item ${m.done ? 'done' : ''}">
+        <span class="milestone-dot ${m.done ? 'milestone-done' : 'milestone-pending'}"></span>
+        <span class="milestone-id">${escapeHtml(m.id)}</span>
+        <span class="milestone-title">${escapeHtml(m.title)}</span>
+      </div>
+    `).join('');
+    prefixInput.style.display = 'none';
+  } else {
+    milestonesEl.innerHTML = '';
+    prefixInput.style.display = '';
+  }
+
+  // Reset milestone input
+  document.getElementById('milestone-title-input').value = '';
+  milestoneInputZone.style.display = 'none';
+  addMilestoneToggle.style.display = '';
 
   // Files — flat list, clickable
   const files = document.getElementById('detail-files');
