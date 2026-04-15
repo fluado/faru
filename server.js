@@ -147,6 +147,7 @@ function scanCards() {
 			const content = fs.readFileSync(canonical, "utf-8");
 			const { data, body } = parseFrontmatter(content);
 			const dateMatch = entry.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
+			const comments = extractComments(body);
 			cards.push({
 				slug: entry,
 				title: data.title || (dateMatch ? dateMatch[2] : entry),
@@ -159,8 +160,8 @@ function scanCards() {
 				files: allFiles,
 				goal: data.description || extractGoal(body),
 				mtime: stat.mtimeMs,
-				comments: extractComments(body),
-				commentCount: extractComments(body).length,
+				comments,
+				commentCount: comments.length,
 			});
 		} else {
 			const dateMatch = entry.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
