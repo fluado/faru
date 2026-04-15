@@ -979,3 +979,128 @@ body.archive-mode .board {
 body.archive-mode .btn-column-add {
 	display: none !important;
 }
+
+/* === Milestones === */
+
+.card-milestone-count {
+	font-size: 0.625rem;
+	font-weight: 600;
+	color: var(--green-text);
+	background: var(--green-bg);
+	padding: 1px 6px;
+	border-radius: 4px;
+}
+
+.detail-milestones-zone {
+	margin-top: 4px;
+}
+
+.detail-milestones {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 8px;
+}
+
+.detail-milestones:empty {
+	display: none;
+}
+
+.detail-milestones:empty + .detail-milestone-input + .btn-add-task {
+	margin-top: 0;
+}
+
+.detail-milestone-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 6px;
+	border-radius: 6px;
+	transition: background var(--transition);
+}
+
+.detail-milestone-item:hover {
+	background: var(--surface-hover);
+}
+
+.milestone-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.milestone-done {
+	background: var(--green);
+}
+
+.milestone-pending {
+	border: 1.5px solid var(--text-faint);
+	background: transparent;
+}
+
+.milestone-id {
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	font-weight: 600;
+	color: var(--text-faint);
+	min-width: 40px;
+}
+
+.milestone-title {
+	font-size: 0.8125rem;
+	color: var(--text);
+}
+
+.detail-milestone-item.done .milestone-title {
+	color: var(--text-muted);
+}
+
+.detail-milestone-input {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.detail-milestone-input input {
+	flex: 1;
+	font-family: var(--font);
+	font-size: 0.8125rem;
+	padding: 7px 10px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--surface);
+	color: var(--text);
+	outline: none;
+	transition: all var(--transition);
+}
+
+.detail-milestone-input input:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+#milestone-prefix-input {
+	max-width: 90px;
+	flex: none;
+	text-transform: uppercase;
+	font-family: var(--font-mono);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+}
+
+.btn-add-task {
+	font-family: var(--font);
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-faint);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px 0;
+	transition: color var(--transition);
+}
+
+.btn-add-task:hover {
+	color: var(--accent-text);
+}
