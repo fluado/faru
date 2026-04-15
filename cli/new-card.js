@@ -34,6 +34,7 @@ if (!args.title) {
 
 const title = args.title;
 const type = args.type || "ops";
+const description = args.description || "";
 
 // --- Resolve git user ---
 
@@ -83,6 +84,7 @@ const frontmatter = [
 	`status: todo`,
 	assigned ? `assigned: ${assigned}` : null,
 	`created: ${today}`,
+	description ? `description: ${description}` : null,
 	"---",
 ]
 	.filter(Boolean)
