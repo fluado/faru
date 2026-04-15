@@ -6,6 +6,8 @@
 
 <p align="center">Git-native kanban board. Cards are markdown files.</p>
 
+<p align="center"><sub>/ˈfa.ru/ — Esperanto for "do!"</sub></p>
+
 
 ## Quick Start
 
