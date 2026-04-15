@@ -263,10 +263,19 @@ function autoArchiveSweep() {
 
 		const content = fs.readFileSync(canonical, "utf-8");
 		const { data } = parseFrontmatter(content);
-		if (data.status !== "done" || !data.edited) continue;
+		if (data.status !== "done") continue;
 
-		const editedMs = new Date(data.edited).getTime();
-		if (isNaN(editedMs) || editedMs > cutoff) continue;
+		let lastActivityMs;
+		if (data.edited) {
+			lastActivityMs = new Date(data.edited).getTime();
+		}
+		
+		// Fallback to file mtime if frontmatter edited date is missing or invalid
+		if (!lastActivityMs || isNaN(lastActivityMs)) {
+			lastActivityMs = fs.statSync(canonical).mtimeMs;
+		}
+
+		if (lastActivityMs > cutoff) continue;
 
 		try {
 			archiveCard(entry);
