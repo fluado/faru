@@ -280,6 +280,9 @@ function openDetail(card) {
 
   // Comments
   const commentsEl = document.getElementById('detail-comments');
+  const commentInputZone = document.getElementById('detail-comment-input');
+  const addCommentToggle = document.getElementById('add-comment-toggle');
+
   if (card.comments && card.comments.length > 0) {
     commentsEl.innerHTML = card.comments.map(c => `
       <div class="comment">
@@ -288,8 +291,14 @@ function openDetail(card) {
         <div class="comment-text">${escapeHtml(c.text)}</div>
       </div>
     `).join('');
+    // Show input when comments exist
+    commentInputZone.style.display = 'flex';
+    addCommentToggle.style.display = 'none';
   } else {
     commentsEl.innerHTML = '';
+    // Collapse: hide input, show toggle
+    commentInputZone.style.display = 'none';
+    addCommentToggle.style.display = '';
   }
 
   // Reset comment input
@@ -427,6 +436,13 @@ function setupDetailModal() {
 
     await submitComment(currentDetailSlug, text);
     await fetchCards();
+  });
+
+  // Toggle "+ Add comment" → reveal input
+  document.getElementById('add-comment-toggle').addEventListener('click', () => {
+    document.getElementById('detail-comment-input').style.display = 'flex';
+    document.getElementById('add-comment-toggle').style.display = 'none';
+    document.getElementById('comment-input').focus();
   });
 }
 
