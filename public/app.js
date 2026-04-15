@@ -52,6 +52,15 @@ async function openCard(slug) {
   });
 }
 
+async function submitComment(slug, text) {
+  const res = await fetch(`/api/cards/${encodeURIComponent(slug)}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  return res.json();
+}
+
 // --- Rendering ---
 
 
@@ -67,12 +76,17 @@ function renderCard(card) {
     : '';
   const date = `<span class="card-date">${card.created}</span>`;
 
+  const commentBadge = card.commentCount > 0
+    ? `<span class="card-comment-count">💬 ${card.commentCount}</span>`
+    : '';
+
   el.innerHTML = `
     <div class="card-title">${escapeHtml(card.title)}</div>
     <div class="card-meta">
       <span class="category ${card.type}">${card.type}</span>
       ${date}
       ${assignee}
+      ${commentBadge}
     </div>
   `;
 
@@ -264,6 +278,26 @@ function openDetail(card) {
     files.innerHTML = '';
   }
 
+  // Comments
+  const commentsEl = document.getElementById('detail-comments');
+  if (card.comments && card.comments.length > 0) {
+    commentsEl.innerHTML = card.comments.map(c => `
+      <div class="comment">
+        <span class="comment-author">${escapeHtml(c.author)}</span>
+        <span class="comment-date">· ${escapeHtml(c.date)}</span>
+        <div class="comment-text">${escapeHtml(c.text)}</div>
+      </div>
+    `).join('');
+  } else {
+    commentsEl.innerHTML = '';
+  }
+
+  // Reset comment input
+  const commentInput = document.getElementById('comment-input');
+  const commentSubmit = document.getElementById('comment-submit');
+  commentInput.value = '';
+  commentSubmit.disabled = true;
+
   overlay.classList.add('open');
 }
 
@@ -352,6 +386,47 @@ function setupDetailModal() {
 
   openBtn.addEventListener('click', () => {
     if (currentDetailSlug) openCard(currentDetailSlug);
+  });
+
+  // Comment input — enable/disable submit
+  const commentInput = document.getElementById('comment-input');
+  const commentSubmit = document.getElementById('comment-submit');
+
+  commentInput.addEventListener('input', () => {
+    commentSubmit.disabled = !commentInput.value.trim();
+  });
+
+  // Enter to submit, Shift+Enter for newline
+  commentInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (commentInput.value.trim()) commentSubmit.click();
+    }
+  });
+
+  commentSubmit.addEventListener('click', async () => {
+    const text = commentInput.value.trim();
+    if (!text || !currentDetailSlug) return;
+
+    // Optimistic render
+    const commentsEl = document.getElementById('detail-comments');
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10) + ' ' + now.toTimeString().slice(0, 5);
+    commentsEl.innerHTML += `
+      <div class="comment">
+        <span class="comment-author">${escapeHtml(currentUser || 'you')}</span>
+        <span class="comment-date">· ${dateStr}</span>
+        <div class="comment-text">${escapeHtml(text)}</div>
+      </div>
+    `;
+    commentsEl.scrollTop = commentsEl.scrollHeight;
+
+    commentInput.value = '';
+    commentSubmit.disabled = true;
+    commentInput.focus();
+
+    await submitComment(currentDetailSlug, text);
+    await fetchCards();
   });
 }
 
