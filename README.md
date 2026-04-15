@@ -8,6 +8,7 @@
 
 <p align="center"><sub>/ˈfa.ru/ — Esperanto for "do!"</sub></p>
 
+Built for teams where agents do the work and humans steer. Agents create cards via CLI, the board updates live. One kanban board, two kinds of workers, everything stored as markdown files you can read, edit, and version-control.
 
 ## Quick Start
 
