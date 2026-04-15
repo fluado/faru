@@ -495,6 +495,49 @@ function setupDetailModal() {
     document.getElementById('add-comment-toggle').style.display = 'none';
     document.getElementById('comment-input').focus();
   });
+
+  // Milestone input — toggle, submit, enter-key
+  document.getElementById('add-milestone-toggle').addEventListener('click', () => {
+    document.getElementById('detail-milestone-input').style.display = 'flex';
+    document.getElementById('add-milestone-toggle').style.display = 'none';
+    document.getElementById('milestone-title-input').focus();
+  });
+
+  const milestoneSubmit = document.getElementById('milestone-submit');
+  const milestoneTitleInput = document.getElementById('milestone-title-input');
+  const milestonePrefixInput = document.getElementById('milestone-prefix-input');
+
+  milestoneTitleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (milestoneTitleInput.value.trim()) milestoneSubmit.click();
+    }
+  });
+
+  milestoneSubmit.addEventListener('click', async () => {
+    const title = milestoneTitleInput.value.trim();
+    if (!title || !currentDetailSlug) return;
+
+    const payload = { title };
+    const prefix = milestonePrefixInput.value.trim();
+    if (prefix) payload.prefix = prefix;
+
+    try {
+      await fetch(`/api/cards/${encodeURIComponent(currentDetailSlug)}/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      milestoneTitleInput.value = '';
+      milestonePrefixInput.value = '';
+      await fetchCards();
+      // Re-open the detail with refreshed data
+      const updated = cards.find(c => c.slug === currentDetailSlug);
+      if (updated) openDetail(updated);
+    } catch (e) {
+      console.error('Failed to add milestone:', e);
+    }
+  });
 }
 
 // --- Keyboard ---
