@@ -3,8 +3,8 @@
  * faru — headless card creation.
  *
  * Usage:
- *   node cli/new-card.js title="Send GTCs to lawyer" type=ops
- *   make new-card title="Send GTCs to lawyer" type=ops
+ *   node cli/new-card.js title="Update landing page copy" type=ops
+ *   make new-card title="Update landing page copy" type=ops
  */
 
 const fs = require("fs");
