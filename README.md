@@ -62,7 +62,7 @@ backlog/2026-04-14-INFRA-MY-PROJECT/
   CARD.md
 ```
 
-The board shows `☑ 2/3` on the card tile. A milestone is "done" when a matching `PREFIX-N-report.md` file exists in the same folder. You can add milestones from the card detail view — they append to the milestones file.
+The board shows `● 2/3` on the card tile. A milestone is "done" when a matching `PREFIX-N-report.md` file exists in the same folder. You can add milestones from the card detail view — they append to the milestones file.
 
 ## Config
 

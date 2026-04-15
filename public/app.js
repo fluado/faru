@@ -83,7 +83,7 @@ function renderCard(card) {
     : '';
 
   const milestoneBadge = card.milestoneProgress
-    ? `<span class="card-milestone-count">☑ ${card.milestoneProgress.done}/${card.milestoneProgress.total}</span>`
+    ? `<span class="card-milestone-count">● ${card.milestoneProgress.done}/${card.milestoneProgress.total}</span>`
     : '';
 
   el.innerHTML = `
