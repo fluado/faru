@@ -806,6 +806,23 @@ body {
 	margin-left: auto;
 }
 
+/* Add comment toggle link */
+.btn-add-comment {
+	font-family: var(--font);
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-faint);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px 0;
+	transition: color var(--transition);
+}
+
+.btn-add-comment:hover {
+	color: var(--accent);
+}
+
 /* Sidebar spacer + Archive */
 .detail-sidebar-spacer {
 	flex: 1;
