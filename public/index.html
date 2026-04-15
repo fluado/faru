@@ -99,6 +99,15 @@
             <div class="detail-body" id="detail-body" contenteditable="true" data-placeholder="Add a description…"></div>
           </div>
           <div class="detail-progress" id="detail-progress"></div>
+          <div class="detail-milestones-zone" id="detail-milestones-zone">
+            <div class="detail-milestones" id="detail-milestones"></div>
+            <div class="detail-milestone-input" id="detail-milestone-input" style="display:none;">
+              <input type="text" id="milestone-title-input" placeholder="Milestone title…">
+              <input type="text" id="milestone-prefix-input" placeholder="Prefix (e.g. VX)" style="display:none;" maxlength="8">
+              <button class="btn btn-comment" id="milestone-submit">Add</button>
+            </div>
+            <button class="btn-add-task" id="add-milestone-toggle">+ Add task</button>
+          </div>
           <div class="detail-files-zone">
             <div class="detail-files" id="detail-files"></div>
           </div>

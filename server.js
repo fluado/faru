@@ -126,6 +126,31 @@ function extractComments(body) {
 	return comments;
 }
 
+function extractMilestones(folderPath, files) {
+	const msFile = files.find((f) => f.endsWith("-milestones.md"));
+	if (!msFile) return null;
+
+	const prefix = msFile.replace("-milestones.md", "");
+	const content = fs.readFileSync(path.join(folderPath, msFile), "utf-8");
+	const headingRe = new RegExp(
+		`^## ${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-(\\d+):?\\s+(.+)`,
+		"gm",
+	);
+
+	const milestones = [];
+	let m;
+	while ((m = headingRe.exec(content)) !== null) {
+		const id = `${prefix}-${m[1]}`;
+		milestones.push({
+			id,
+			title: m[2].trim(),
+			done: files.includes(`${id}-report.md`),
+		});
+	}
+
+	return milestones.length > 0 ? { prefix, milestones, file: msFile } : null;
+}
+
 function scanCards(includeArchive = false) {
 	const cards = [];
 	const targetDir = includeArchive ? path.join(BACKLOG_DIR, "archive") : BACKLOG_DIR;
@@ -173,6 +198,19 @@ function scanCards(includeArchive = false) {
 				comments,
 				commentCount: comments.length,
 				isArchived: !!includeArchive,
+				...(() => {
+					const ms = extractMilestones(folderPath, allFiles);
+					if (!ms) return { milestones: [], milestoneProgress: null };
+					const done = ms.milestones.filter((m) => m.done).length;
+					return {
+						milestones: ms.milestones,
+						milestoneProgress: {
+							done,
+							total: ms.milestones.length,
+							prefix: ms.prefix,
+						},
+					};
+				})(),
 			});
 		} else {
 			const dateMatch = entry.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
@@ -530,6 +568,90 @@ const server = http.createServer(async (req, res) => {
 			]);
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify(comment));
+		} catch (e) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
+	if (
+		url.pathname.match(/^\/api\/cards\/([^/]+)\/milestones$/) &&
+		req.method === "POST"
+	) {
+		const slug = decodeURIComponent(url.pathname.split("/")[3]);
+		try {
+			const body = await readBody(req);
+			if (!body.title || !body.title.trim())
+				throw new Error("Empty milestone title");
+			const title = body.title.trim();
+
+			const folderPath = path.join(BACKLOG_DIR, slug);
+			if (!fs.existsSync(folderPath)) throw new Error("Card not found");
+
+			const files = fs
+				.readdirSync(folderPath)
+				.filter((f) => f.endsWith(".md"));
+			const msFile = files.find((f) => f.endsWith("-milestones.md"));
+
+			let prefix;
+			let msPath;
+
+			if (msFile) {
+				prefix = msFile.replace("-milestones.md", "");
+				msPath = path.join(folderPath, msFile);
+			} else {
+				if (!body.prefix || !body.prefix.trim())
+					throw new Error("Prefix required for new milestones file");
+				prefix = body.prefix.trim().toUpperCase();
+				const fileName = `${prefix}-milestones.md`;
+				msPath = path.join(folderPath, fileName);
+
+				// Read card frontmatter to seed the milestones file
+				const canonical = findCanonicalFile(folderPath);
+				let msData = {};
+				if (canonical) {
+					const content = fs.readFileSync(canonical, "utf-8");
+					const { data } = parseFrontmatter(content);
+					msData = {
+						title: data.title || slug,
+						type: data.type || "product",
+						status: data.status || "todo",
+						assigned: data.assigned || "",
+						created: new Date().toISOString().slice(0, 10),
+						edited: new Date().toISOString().slice(0, 10),
+					};
+				}
+				const header = serializeFrontmatter(
+					msData,
+					`# ${prefix} Milestones`,
+				);
+				fs.writeFileSync(msPath, header, "utf-8");
+			}
+
+			// Find the next milestone number
+			const content = fs.readFileSync(msPath, "utf-8");
+			const headingRe = new RegExp(
+				`## ${prefix.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}-(\\d+)`,
+				"g",
+			);
+			let maxNum = 0;
+			let hm;
+			while ((hm = headingRe.exec(content)) !== null) {
+				const n = parseInt(hm[1], 10);
+				if (n > maxNum) maxNum = n;
+			}
+			const nextId = `${prefix}-${maxNum + 1}`;
+
+			// Append the milestone stub
+			const stub = `\n\n---\n\n## ${nextId}: ${title}\n\n> Placeholder — expand with planning.\n`;
+			fs.appendFileSync(msPath, stub, "utf-8");
+
+			gitCommit(`add milestone ${nextId} to ${slug}`, [
+				`backlog/${slug}`,
+			]);
+			res.writeHead(201, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ id: nextId, title }));
 		} catch (e) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: e.message }));
