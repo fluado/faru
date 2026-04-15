@@ -749,6 +749,15 @@ body {
 	margin-top: 1px;
 }
 
+.comment-text a {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+.comment-text a:hover {
+	text-decoration: underline;
+}
+
 .detail-comment-input {
 	display: flex;
 	gap: 6px;
