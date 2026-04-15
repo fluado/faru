@@ -27,7 +27,7 @@ Every card is a folder inside `backlog/` following the naming convention `YYYY-M
 title: Implement OAuth flow
 type: product
 status: wip
-assigned: yvg
+assigned: alice
 created: 2026-04-15
 ---
 
