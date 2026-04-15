@@ -69,17 +69,17 @@ make new-card title="Fix login bug" type=bug
 
 Or just tell your agent:
 
-> Create a card: make a folder `backlog/2026-04-15-BUG-FIX-LOGIN/` containing a `CARD.md` with this format:
+> Create a card: make a folder `backlog/YYYY-MM-DD-TYPE-TITLE/` containing a `CARD.md` with this format:
 > ```
 > ---
-> title: Fix login bug
-> type: bug
+> title: <title>
+> type: <type>
 > status: todo
-> assigned: alice
-> created: 2026-04-15
-> description: Users get a 401 after token refresh.
+> assigned: <user>
+> created: <date>
+> description: <one-line summary>
 > ---
-> # Fix login bug
+> # <title>
 > ```
 
 Cards are just markdown folders. Any tool that can write files can create them.
