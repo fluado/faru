@@ -147,7 +147,16 @@ function scanCards() {
 			const content = fs.readFileSync(canonical, "utf-8");
 			const { data, body } = parseFrontmatter(content);
 			const dateMatch = entry.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
-			const comments = extractComments(body);
+			// Comments live in CARD.md, not necessarily in the canonical (display) file
+			const cardMdPath = path.join(folderPath, "CARD.md");
+			let comments;
+			if (fs.existsSync(cardMdPath) && canonical !== cardMdPath) {
+				const cardContent = fs.readFileSync(cardMdPath, "utf-8");
+				const { body: cardBody } = parseFrontmatter(cardContent);
+				comments = extractComments(cardBody);
+			} else {
+				comments = extractComments(body);
+			}
 			cards.push({
 				slug: entry,
 				title: data.title || (dateMatch ? dateMatch[2] : entry),
