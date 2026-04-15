@@ -230,12 +230,13 @@ function createCard(title, type, assigned, status, description) {
 
 	const data = {
 		title,
-		type: typePart.toLowerCase(),
+		type: type.toLowerCase(),
 		status: status || "todo",
-		assigned: assigned || "",
+		assigned: assigned || gitUser,
 		created: today,
 		edited: today,
 	};
+	if (description) data.description = description;
 	
 	if (data.status === "done") {
 		data.completed = today;
