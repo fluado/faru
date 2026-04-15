@@ -126,14 +126,15 @@ function extractComments(body) {
 	return comments;
 }
 
-function scanCards() {
+function scanCards(includeArchive = false) {
 	const cards = [];
-	if (!fs.existsSync(BACKLOG_DIR)) return cards;
-	const entries = fs.readdirSync(BACKLOG_DIR);
+	const targetDir = includeArchive ? path.join(BACKLOG_DIR, "archive") : BACKLOG_DIR;
+	if (!fs.existsSync(targetDir)) return cards;
+	const entries = fs.readdirSync(targetDir);
 
 	for (const entry of entries) {
 		if (entry === "archive" || entry.startsWith(".")) continue;
-		const folderPath = path.join(BACKLOG_DIR, entry);
+		const folderPath = path.join(targetDir, entry);
 		if (!fs.statSync(folderPath).isDirectory()) continue;
 		if (!/^\d{4}-\d{2}-\d{2}-.+/.test(entry)) continue;
 
@@ -171,6 +172,7 @@ function scanCards() {
 				mtime: stat.mtimeMs,
 				comments,
 				commentCount: comments.length,
+				isArchived: !!includeArchive,
 			});
 		} else {
 			const dateMatch = entry.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
@@ -445,8 +447,9 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	if (url.pathname === "/api/cards" && req.method === "GET") {
+		const isArchived = url.searchParams.get("archive") === "1";
 		res.writeHead(200, { "Content-Type": "application/json" });
-		res.end(JSON.stringify(scanCards()));
+		res.end(JSON.stringify(scanCards(isArchived)));
 		return;
 	}
 
