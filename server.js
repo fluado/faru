@@ -110,6 +110,22 @@ function extractGoal(body) {
 	return quoteLines.join(" ").replace(/\*\*/g, "").trim();
 }
 
+function extractComments(body) {
+	const comments = [];
+	const idx = body.indexOf("## Comments");
+	if (idx === -1) return comments;
+	const section = body.slice(idx);
+	const lines = section.split("\n");
+	const re = /^- \*\*(.+?)\*\* \((.+?)\): (.+)$/;
+	for (const line of lines) {
+		const m = line.match(re);
+		if (m) {
+			comments.push({ author: m[1], date: m[2], text: m[3] });
+		}
+	}
+	return comments;
+}
+
 function scanCards() {
 	const cards = [];
 	if (!fs.existsSync(BACKLOG_DIR)) return cards;
@@ -143,6 +159,8 @@ function scanCards() {
 				files: allFiles,
 				goal: data.description || extractGoal(body),
 				mtime: stat.mtimeMs,
+				comments: extractComments(body),
+				commentCount: extractComments(body).length,
 			});
 		} else {
 			const dateMatch = entry.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
@@ -216,6 +234,29 @@ function archiveCard(slug) {
 	if (!fs.existsSync(ARCHIVE_DIR))
 		fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
 	fs.renameSync(src, path.join(ARCHIVE_DIR, slug));
+}
+
+function addComment(slug, text) {
+	const folderPath = path.join(BACKLOG_DIR, slug);
+	if (!fs.existsSync(folderPath)) throw new Error("Card not found");
+	const canonical = findCanonicalFile(folderPath);
+	if (!canonical) throw new Error("No canonical file found");
+
+	const content = fs.readFileSync(canonical, "utf-8");
+	const now = new Date();
+	const date = now.toISOString().slice(0, 10);
+	const time = now.toTimeString().slice(0, 5);
+	const author = gitUser || "anonymous";
+	const line = `- **${author}** (${date} ${time}): ${text}`;
+
+	let updated;
+	if (content.includes("## Comments")) {
+		updated = content.trimEnd() + "\n" + line + "\n";
+	} else {
+		updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
+	}
+	fs.writeFileSync(canonical, updated, "utf-8");
+	return { author, date: `${date} ${time}`, text };
 }
 
 // --- Git Helpers ---
@@ -401,6 +442,27 @@ const server = http.createServer(async (req, res) => {
 			]);
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ archived: true }));
+		} catch (e) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
+	if (
+		url.pathname.match(/^\/api\/cards\/([^/]+)\/comments$/) &&
+		req.method === "POST"
+	) {
+		const slug = decodeURIComponent(url.pathname.split("/")[3]);
+		try {
+			const body = await readBody(req);
+			if (!body.text || !body.text.trim()) throw new Error("Empty comment");
+			const comment = addComment(slug, body.text.trim());
+			gitCommit(`comment on ${slug}`, [
+				`backlog/${slug}`,
+			]);
+			res.writeHead(201, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(comment));
 		} catch (e) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: e.message }));
