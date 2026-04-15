@@ -39,6 +39,17 @@ Details go here.
 
 Drag cards between columns. Edit titles and descriptions inline. Faru commits and pushes changes automatically.
 
+### Card Folders
+
+Each card folder can contain multiple files. All files are listed in the card detail view. Faru picks the primary file for frontmatter in this order:
+
+1. `*-milestones.md`
+2. `CARD.md`
+3. `*-spec.md`
+4. Any `.md` file
+
+Structure the rest however you want.
+
 ## Config
 
 Create a `faru.config.json` in your project root (all fields required):
