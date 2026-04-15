@@ -81,6 +81,14 @@ node cli/new-card.js title="Fix login bug" type=bug
 - **Inline editing** — click titles and descriptions to edit
 - **Cross-platform** — macOS, Windows, Linux
 
+## Philosophy
+
+faru has 3 columns: Todo, WIP, Done. You can't add more. This is intentional.
+
+More columns means more places for work to stall. "In Review," "Blocked," "Ready for QA" are symptoms, not workflow stages. If something is blocked, fix the blocker or move it back to Todo. If it's in review, it's still WIP.
+
+This comes from lean thinking and trunk-based development. Minimize work in progress. Ship small. Keep things moving. A card is either not started, being worked on, or done. Three states is enough.
+
 ## Contributing
 
 We built faru for ourselves. We use it every day at fluado and we're sharing it because it might be useful to others.
