@@ -46,6 +46,14 @@ async function openFile(slug, file) {
   });
 }
 
+async function openLinkedFile(linkedPath) {
+  await fetch('/api/open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ linkedPath }),
+  });
+}
+
 async function openCard(slug) {
   await fetch('/api/open', {
     method: 'POST',
@@ -329,6 +337,43 @@ function openDetail(card) {
     });
   } else {
     files.innerHTML = '';
+  }
+
+  // Linked files
+  const linkedZone = document.getElementById('detail-linked');
+  if (card.linkedFiles && card.linkedFiles.length > 0) {
+    let html = '';
+    for (const link of card.linkedFiles) {
+      if (link.isDir) {
+        html += `
+          <div class="detail-file-group">
+            <div class="detail-file-group-title" data-linked-dir="${escapeHtml(link.path)}">🔗 ${escapeHtml(link.name)}/</div>
+            ${link.children.map((f) =>
+              `<div class="detail-file detail-linked-file" data-linked-path="${escapeHtml(link.path + '/' + f)}">${escapeHtml(f)}</div>`
+            ).join('')}
+          </div>
+        `;
+      } else {
+        html += `<div class="detail-file detail-linked-file" data-linked-path="${escapeHtml(link.path)}">${escapeHtml(link.name)}</div>`;
+      }
+    }
+    linkedZone.innerHTML = html;
+
+    linkedZone.querySelectorAll('.detail-linked-file').forEach((el) => {
+      el.addEventListener('click', () => {
+        const lp = el.dataset.linkedPath;
+        if (lp) openLinkedFile(lp);
+      });
+    });
+
+    linkedZone.querySelectorAll('.detail-file-group-title[data-linked-dir]').forEach((el) => {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', () => {
+        openLinkedFile(el.dataset.linkedDir);
+      });
+    });
+  } else {
+    linkedZone.innerHTML = '';
   }
 
   // Comments
