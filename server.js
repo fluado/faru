@@ -50,11 +50,30 @@ function parseFrontmatter(content) {
 	const yaml = match[1];
 	const body = content.slice(match[0].length).trim();
 	const data = {};
-	for (const line of yaml.split("\n")) {
+	const lines = yaml.split("\n");
+	let i = 0;
+	while (i < lines.length) {
+		const line = lines[i];
 		const colonIdx = line.indexOf(":");
-		if (colonIdx === -1) continue;
+		if (colonIdx === -1) { i++; continue; }
 		const key = line.slice(0, colonIdx).trim();
 		let val = line.slice(colonIdx + 1).trim();
+		// Check if next lines are list items (YAML list)
+		if (val === "" && i + 1 < lines.length && lines[i + 1].match(/^\s+-\s/)) {
+			const items = [];
+			i++;
+			while (i < lines.length && lines[i].match(/^\s+-\s/)) {
+				let item = lines[i].replace(/^\s+-\s+/, "").trim();
+				if ((item.startsWith('"') && item.endsWith('"')) ||
+					(item.startsWith("'") && item.endsWith("'"))) {
+					item = item.slice(1, -1);
+				}
+				items.push(item);
+				i++;
+			}
+			data[key] = items;
+			continue;
+		}
 		if (
 			(val.startsWith('"') && val.endsWith('"')) ||
 			(val.startsWith("'") && val.endsWith("'"))
@@ -62,12 +81,17 @@ function parseFrontmatter(content) {
 			val = val.slice(1, -1);
 		}
 		data[key] = val;
+		i++;
 	}
 	return { data, body };
 }
 
 function serializeFrontmatter(data, body) {
 	const lines = Object.entries(data).map(([k, v]) => {
+		if (Array.isArray(v)) {
+			if (v.length === 0) return `${k}:`;
+			return `${k}:\n${v.map((item) => `  - ${item}`).join("\n")}`;
+		}
 		if (
 			typeof v === "string" &&
 			(v.includes(":") || v.includes("#") || v.includes('"'))
@@ -151,6 +175,35 @@ function extractMilestones(folderPath, files) {
 	return milestones.length > 0 ? { prefix, milestones, file: msFile } : null;
 }
 
+function resolveLinks(links) {
+	const resolved = [];
+	for (const link of links) {
+		const abs = path.resolve(DOCS_ROOT, link);
+		// Security: must be within DOCS_ROOT
+		if (!abs.startsWith(DOCS_ROOT)) continue;
+		if (!fs.existsSync(abs)) continue;
+		const stat = fs.statSync(abs);
+		if (stat.isDirectory()) {
+			const entries = fs.readdirSync(abs)
+				.filter((f) => !f.startsWith("."))
+				.slice(0, 50);
+			resolved.push({
+				path: link,
+				name: path.basename(link),
+				isDir: true,
+				children: entries,
+			});
+		} else {
+			resolved.push({
+				path: link,
+				name: path.basename(link),
+				isDir: false,
+			});
+		}
+	}
+	return resolved;
+}
+
 function scanCards(includeArchive = false) {
 	const cards = [];
 	const targetDir = includeArchive ? path.join(BACKLOG_DIR, "archive") : BACKLOG_DIR;
@@ -193,6 +246,7 @@ function scanCards(includeArchive = false) {
 				edited: data.edited || "",
 				canonicalFile: path.basename(canonical),
 				files: allFiles,
+				linkedFiles: resolveLinks(Array.isArray(data.links) ? data.links : []),
 				goal: data.description || extractGoal(body),
 				mtime: stat.mtimeMs,
 				comments,
@@ -665,16 +719,24 @@ const server = http.createServer(async (req, res) => {
 			const body = await readBody(req);
 			const slug = body.slug;
 			const file = body.file;
-			const folderPath = path.join(BACKLOG_DIR, slug);
-			if (!fs.existsSync(folderPath)) throw new Error("Card not found");
+			const linkedPath = body.linkedPath;
 
 			let target;
-			if (file) {
-				target = path.join(folderPath, file);
-				if (!fs.existsSync(target)) throw new Error("File not found");
+			if (linkedPath) {
+				// Linked files are relative to DOCS_ROOT
+				target = path.resolve(DOCS_ROOT, linkedPath);
+				if (!target.startsWith(DOCS_ROOT)) throw new Error("Path outside root");
+				if (!fs.existsSync(target)) throw new Error("Linked path not found");
 			} else {
-				const canonical = findCanonicalFile(folderPath);
-				target = canonical || folderPath;
+				const folderPath = path.join(BACKLOG_DIR, slug);
+				if (!fs.existsSync(folderPath)) throw new Error("Card not found");
+				if (file) {
+					target = path.join(folderPath, file);
+					if (!fs.existsSync(target)) throw new Error("File not found");
+				} else {
+					const canonical = findCanonicalFile(folderPath);
+					target = canonical || folderPath;
+				}
 			}
 
 			const opener = process.platform === "darwin" ? "open"
