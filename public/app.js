@@ -91,9 +91,9 @@ function renderCard(card) {
     <div class="card-meta">
       <span class="category ${card.type}">${card.type}</span>
       ${date}
-      ${assignee}
       ${milestoneBadge}
       ${commentBadge}
+      ${assignee}
     </div>
   `;
 
