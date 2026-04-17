@@ -321,10 +321,16 @@ body {
 	color: var(--green-text);
 }
 
+.card-meta-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+}
+
 .card-assignee {
 	font-size: 0.6875rem;
 	color: var(--text-faint);
-	margin-left: auto;
 }
 
 .card-date {
