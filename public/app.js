@@ -91,9 +91,11 @@ function renderCard(card) {
     <div class="card-meta">
       <span class="category ${card.type}">${card.type}</span>
       ${date}
-      ${assignee}
-      ${milestoneBadge}
-      ${commentBadge}
+      <span class="card-meta-right">
+        ${assignee}
+        ${milestoneBadge}
+        ${commentBadge}
+      </span>
     </div>
   `;
 
