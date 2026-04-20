@@ -125,16 +125,16 @@ body {
 	align-items: center;
 	gap: 12px;
 	padding: 12px 28px;
-	background: var(--surface);
-	border-bottom: 1px solid var(--border);
+	background: var(--accent-muted);
+	border-bottom: 1px solid var(--border-subtle);
 }
 
 .goal-label {
 	font-size: 0.6rem;
-	font-weight: 600;
+	font-weight: 700;
 	text-transform: uppercase;
-	letter-spacing: 0.06em;
-	color: var(--text-faint);
+	letter-spacing: 0.08em;
+	color: var(--accent-text);
 	flex-shrink: 0;
 }
 
