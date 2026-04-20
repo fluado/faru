@@ -18,6 +18,12 @@ npx github:fluado/faru
 
 That's it. Faru reads your `backlog/` directory, parses YAML frontmatter from markdown files, and renders a kanban board with three columns: **Todo**, **WIP**, **Done**.
 
+![Faru Kanban Board](public/board.png)
+
+When you click on a card, a detailed modal opens highlighting the frontmatter metadata, comments, milestones, and a clickable list of the raw files inside the folder:
+
+![Faru Detail Modal](public/modal.png)
+
 ## How It Works
 
 Every card is a folder inside `backlog/` following the naming convention `YYYY-MM-DD-TYPE-TITLE/`. Each folder contains a `CARD.md` (or any `.md` file) with YAML frontmatter:
