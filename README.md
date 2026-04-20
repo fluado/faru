@@ -8,21 +8,111 @@
 
 <p align="center"><sub>/ˈfa.ru/ — Esperanto for "do!"</sub></p>
 
-Built for teams where agents do the work and humans steer. Agents create cards via CLI, the board updates live. One kanban board, two kinds of workers, everything stored as markdown files you can read, edit, and version-control.
+Built for teams where agents do the work and humans steer. Agents create and manage cards as markdown files, the board renders them live. One kanban board, two kinds of workers, everything stored in git.
 
 ## Quick Start
+
+1. Copy the [setup prompt](#setup-prompt) below into your AI coding agent
+2. Let it create `faru.config.json`, a `backlog/` directory, and a few starter cards
+3. Run:
 
 ```bash
 npx github:fluado/faru
 ```
 
-That's it. Faru reads your `backlog/` directory, parses YAML frontmatter from markdown files, and renders a kanban board with three columns: **Todo**, **WIP**, **Done**.
+## Setup Prompt
 
-![Faru Kanban Board](public/board.png)
+Copy this into your AI coding agent (Cursor, Copilot, Claude Code, Windsurf, etc.) to bootstrap faru in your project:
 
-When you click on a card, a detailed modal opens highlighting the frontmatter metadata, comments, milestones, and a clickable list of the raw files inside the folder:
+<details>
+<summary>Click to expand the setup prompt</summary>
 
-![Faru Detail Modal](public/modal.png)
+~~~
+Set up a faru kanban board in this repository.
+
+faru is a git-native kanban board that renders markdown files as cards.
+
+### Step 1: Create faru.config.json in the project root
+
+```json
+{
+  "backlogDir": "./backlog",
+  "port": 3333,
+  "cardCategories": ["product", "ops", "bug"],
+  "autoSync": true,
+  "archiveDoneAfterDays": 14
+}
+```
+
+- backlogDir: path to the backlog directory (relative to project root)
+- port: local server port
+- cardCategories: the card types available in the UI (lowercase)
+- autoSync: if true, faru auto-commits and pushes changes via git
+- archiveDoneAfterDays: cards marked "done" are auto-archived after N days
+
+Adjust cardCategories to match this project (e.g. "feature", "bug", "infra", "docs").
+
+### Step 2: Create the backlog/ directory with 3-5 starter cards
+
+Each card is a folder inside backlog/ following this naming convention:
+
+  backlog/YYYY-MM-DD-TYPE-TITLE/CARD.md
+
+Folder name format: YYYY-MM-DD-TYPE-TITLE
+- YYYY-MM-DD: today's date
+- TYPE: uppercase category (must match one of cardCategories)
+- TITLE: uppercase, hyphens instead of spaces
+
+Each CARD.md has YAML frontmatter:
+
+```yaml
+---
+title: Human-readable title
+type: category (lowercase, from cardCategories)
+status: todo
+assigned: <your git username from `git config user.name`>
+created: YYYY-MM-DD
+edited: YYYY-MM-DD
+description: One-line summary of what this card is about
+---
+
+# Card Title
+
+Details, context, or acceptance criteria go here.
+```
+
+Look at the codebase, README, open issues, or TODOs to create 3-5 cards
+that reflect real work for this project. Set status to "todo" for all of them.
+
+### Step 3: Create weekly-goal.md in the project root
+
+A single line of text describing the focus for the current week. Example:
+
+  Ship OAuth integration and close all P0 bugs.
+
+### Step 4: Verify the structure
+
+```
+project-root/
+├── faru.config.json
+├── weekly-goal.md
+└── backlog/
+    ├── 2025-04-20-PRODUCT-OAUTH-LOGIN/
+    │   └── CARD.md
+    ├── 2025-04-20-BUG-DASHBOARD-CRASH/
+    │   └── CARD.md
+    └── 2025-04-20-OPS-CI-PIPELINE/
+        └── CARD.md
+```
+
+### Step 5: Run the board
+
+```bash
+npx github:fluado/faru
+```
+~~~
+
+</details>
 
 ## How It Works
 
@@ -76,6 +166,38 @@ backlog/2026-04-14-INFRA-MY-PROJECT/
 
 The board shows `● 2/3` on the card tile. A milestone is "done" when a matching `PREFIX-N-report.md` file exists in the same folder. You can add milestones from the card detail view — they append to the milestones file.
 
+A milestones file uses the same YAML frontmatter as a card, plus `## PREFIX-N: Title` headings for each milestone:
+
+```yaml
+---
+title: My Project
+type: infra
+status: wip
+assigned: alice
+created: 2026-04-14
+edited: 2026-04-14
+description: Short summary of the project
+---
+
+# VX Milestones
+
+## VX-1: Research & Design
+
+> Scope, acceptance criteria, tickets, etc.
+
+## VX-2: Implementation
+
+> ...
+
+## VX-3: Deployment
+
+> ...
+```
+
+To break a card into milestones, tell your agent:
+
+> Break this card into milestones. Create a `PREFIX-milestones.md` file in the card folder with `## PREFIX-N: Title` headings. Use the card's frontmatter. When a milestone is complete, create a `PREFIX-N-report.md` file in the same folder.
+
 ## Config
 
 Create a `faru.config.json` in your project root (all fields required):
@@ -96,32 +218,15 @@ Create a `faru.config.json` in your project root (all fields required):
 | `port` | Server port |
 | `cardCategories` | Category labels for the type dropdown |
 | `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
-| `archiveDoneAfterDays` | (Optional) Automatically move `done` cards edited more than N days ago to archive. Runs on server start and every 12 hours. |
+| `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
 
 ## Creating Cards
 
-Via CLI:
+Tell your agent:
 
-```bash
-make new-card title="Fix login bug" type=bug
-```
+> Create a new faru card in the `backlog/` folder for [describe the task]. Use today's date, set status to todo, and assign it to me.
 
-Or just tell your agent:
-
-> Create a card: make a folder `backlog/YYYY-MM-DD-TYPE-TITLE/` containing a `CARD.md` with this format:
-> ```
-> ---
-> title: <title>
-> type: <type>
-> status: todo
-> assigned: <user>
-> created: <date>
-> description: <one-line summary>
-> ---
-> # <title>
-> ```
-
-Cards are just markdown folders. Any tool that can write files can create them.
+Cards are folders with markdown files. Any tool that can write files can create them. The board UI also lets you create cards directly.
 
 ## Features
 

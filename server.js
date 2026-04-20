@@ -9,7 +9,24 @@ const DOCS_ROOT = process.cwd();
 function loadConfig() {
 	const configPath = path.join(DOCS_ROOT, "faru.config.json");
 	if (!fs.existsSync(configPath)) {
-		console.error(`\n  ✖  faru.config.json not found at ${configPath}\n`);
+		console.error(`
+  faru — git-native kanban board
+
+  No faru.config.json found in this directory.
+
+  Quick setup: copy the setup prompt from the README into your AI coding agent:
+  https://github.com/fluado/faru#setup-prompt
+
+  Or create faru.config.json manually:
+
+  {
+    "backlogDir": "./backlog",
+    "port": 3333,
+    "cardCategories": ["product", "ops", "bug"],
+    "autoSync": true,
+    "archiveDoneAfterDays": 14
+  }
+`);
 		process.exit(1);
 	}
 	return JSON.parse(fs.readFileSync(configPath, "utf-8"));
