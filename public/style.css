@@ -174,7 +174,7 @@ body {
 	grid-template-columns: repeat(3, 1fr);
 	gap: 20px;
 	padding: 24px 28px;
-	min-height: calc(100vh - 53px);
+	min-height: calc(100vh - 95px);
 	align-items: start;
 }
 
@@ -183,7 +183,7 @@ body {
 	border-radius: var(--radius-xl);
 	border: none;
 	min-height: 200px;
-	max-height: calc(100vh - 100px);
+	max-height: calc(100vh - 145px);
 	display: flex;
 	flex-direction: column;
 	box-shadow: var(--shadow);
