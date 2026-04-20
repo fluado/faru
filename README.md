@@ -259,11 +259,15 @@ This comes from lean thinking and trunk-based development. Minimize work in prog
 
 ## FAQ
 
-**Where does faru run?**
+<details>
+<summary>Where does faru run?</summary>
 
 On your machine. Faru is a local dev server — you run `npx github:fluado/faru` in the directory where your `faru.config.json` lives, open `http://localhost:3333` in your browser, and "Open in Editor" opens files in your local editor. Your AI agent doesn't need faru running at all. The agent just writes markdown files and pushes via git. Faru polls the remote every 5 seconds and pulls changes automatically.
 
-**Will faru pollute my git history?**
+</details>
+
+<details>
+<summary>Will faru pollute my git history?</summary>
 
 When `autoSync` is `true`, faru commits every change with a `board: ` prefix (`board: move X to wip`, `board: comment on Y`). These are real commits on whatever branch is checked out. If you want a clean main branch, you have two options:
 
@@ -271,6 +275,8 @@ When `autoSync` is `true`, faru commits every change with a `board: ` prefix (`b
 - Run faru on a dedicated branch and merge to main on your own terms.
 
 In practice, board commits are small and only touch files inside your `backlogDir`. They won't appear in diffs for your source code.
+
+</details>
 
 ## Contributing
 
