@@ -19,6 +19,7 @@ const config = loadConfig();
 const PORT = config.port;
 const BACKLOG_DIR = path.resolve(DOCS_ROOT, config.backlogDir);
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, "archive");
+const GOAL_FILE = path.join(DOCS_ROOT, "weekly-goal.md");
 
 function resolveGitUser() {
 	try {
@@ -535,6 +536,34 @@ const server = http.createServer(async (req, res) => {
 		const assignees = [...set].sort();
 		res.writeHead(200, { "Content-Type": "application/json" });
 		res.end(JSON.stringify(assignees));
+		return;
+	}
+
+	// --- Weekly Goal ---
+
+	if (url.pathname === "/api/goal" && req.method === "GET") {
+		let text = "";
+		if (fs.existsSync(GOAL_FILE)) {
+			text = fs.readFileSync(GOAL_FILE, "utf-8").trim();
+		}
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify({ text }));
+		return;
+	}
+
+	if (url.pathname === "/api/goal" && req.method === "PUT") {
+		try {
+			const body = await readBody(req);
+			const text = (body.text || "").trim();
+			fs.writeFileSync(GOAL_FILE, text + "\n", "utf-8");
+			autoCommit(`goal: ${text.slice(0, 50)}`);
+			log(`Goal updated: "${text.slice(0, 60)}"`);
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ ok: true }));
+		} catch (e) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
 		return;
 	}
 
