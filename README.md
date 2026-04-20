@@ -257,6 +257,21 @@ More columns means more places for work to stall. "In Review," "Blocked," "Ready
 
 This comes from lean thinking and trunk-based development. Minimize work in progress. Ship small. Keep things moving. A card is either not started, being worked on, or done. Three states is enough.
 
+## FAQ
+
+**Where does faru run?**
+
+On your machine. Faru is a local dev server — you run `npx github:fluado/faru` in the directory where your `faru.config.json` lives, open `http://localhost:3333` in your browser, and "Open in Editor" opens files in your local editor. Your AI agent doesn't need faru running at all. The agent just writes markdown files and pushes via git. Faru polls the remote every 5 seconds and pulls changes automatically.
+
+**Will faru pollute my git history?**
+
+When `autoSync` is `true`, faru commits every change with a `board: ` prefix (`board: move X to wip`, `board: comment on Y`). These are real commits on whatever branch is checked out. If you want a clean main branch, you have two options:
+
+- Set `"autoSync": false` — faru becomes read-only from git's perspective. You commit manually.
+- Run faru on a dedicated branch and merge to main on your own terms.
+
+In practice, board commits are small and only touch files inside your `backlogDir`. They won't appear in diffs for your source code.
+
 ## Contributing
 
 We built faru for ourselves. We use it every day at fluado and we're sharing it because it might be useful to others.
