@@ -151,17 +151,19 @@ body {
 
 .goal-text:hover {
 	color: var(--text);
+	background: rgba(255, 255, 255, 0.4);
 }
 
 .goal-text:focus {
 	color: var(--text);
-	background: var(--bg);
+	background: var(--surface);
 	box-shadow: 0 0 0 2px var(--accent-muted);
 }
 
 .goal-text:empty::before {
 	content: attr(data-placeholder);
-	color: var(--text-faint);
+	color: var(--accent-text);
+	opacity: 0.6;
 	font-style: italic;
 }
 
