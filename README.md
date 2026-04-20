@@ -269,12 +269,11 @@ On your machine. Faru is a local dev server — you run `npx github:fluado/faru`
 <details>
 <summary>Will faru pollute my git history?</summary>
 
-When `autoSync` is `true`, faru commits every change with a `board: ` prefix (`board: move X to wip`, `board: comment on Y`). These are real commits on whatever branch is checked out. If you want a clean main branch, you have two options:
+When `autoSync` is `true`, faru commits every change with a `board: ` prefix (`board: move X to wip`, `board: comment on Y`). These are real commits on whatever branch is checked out.
 
-- Set `"autoSync": false` — faru becomes read-only from git's perspective. You commit manually.
-- Run faru on a dedicated branch and merge to main on your own terms.
+If you want to keep your source repo's history clean, **run faru in a separate repo**. Create a dedicated repo for your backlog and config, point your agents at it for card management, and run faru there. Board commits stay completely isolated from your code history. This is what we do.
 
-In practice, board commits are small and only touch files inside your `backlogDir`. They won't appear in diffs for your source code.
+If a separate repo isn't an option, you can set `"autoSync": false` to disable auto-commits entirely.
 
 </details>
 
