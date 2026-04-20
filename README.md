@@ -30,6 +30,8 @@ status: wip
 assigned: alice
 created: 2026-04-15
 description: Add OAuth 2.0 login flow with PKCE for the dashboard.
+links:
+  - specs/oauth-design.md
 ---
 
 # Implement OAuth flow
@@ -38,6 +40,10 @@ Details go here.
 ```
 
 Drag cards between columns. Edit titles and descriptions inline. Faru commits and pushes changes automatically.
+
+### Links & References
+
+If your card relates to external documentation, specs, or folders outside of the `backlog/` hierarchy, you can link them directly to the card via a `links:` array in the frontmatter. All listed references will appear in the card's sidebar and open directly in your editor when clicked.
 
 ### Card Folders
 
@@ -114,7 +120,9 @@ Cards are just markdown folders. Any tool that can write files can create them.
 ## Features
 
 - **Zero dependencies** — single `server.js`, no `node_modules`
+- **Weekly Goal** — set a high-level focus via an editable board banner that saves directly to `weekly-goal.md` in your project root
 - **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
+- **External links** — attach references or external spec folders to any card via a `links:` array in the YAML frontmatter
 - **Comments** — add comments from the card detail view. Stored as `## Comments` in `CARD.md`, visible as a badge on card tiles
 - **Milestones from UI** — add new milestones directly from the card detail. Auto-creates the milestones file if one doesn't exist yet
 - **Archive** — archive cards from the detail view. Toggle the archive view to browse archived cards. Auto-archive sweeps `done` cards older than N days (configurable)
