@@ -124,7 +124,7 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 4px 28px;
+	padding: 10px 28px 5px;
 	border-bottom: 1px solid var(--border-subtle);
 }
 
