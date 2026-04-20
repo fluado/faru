@@ -653,3 +653,35 @@ fetch('/api/assignees')
     }
   })
   .catch(() => {});
+
+// --- Weekly Goal ---
+const goalEl = document.getElementById('goal-text');
+let goalSaveTimer = null;
+
+fetch('/api/goal')
+  .then(r => r.json())
+  .then(data => {
+    if (data.text) goalEl.textContent = data.text;
+  })
+  .catch(() => {});
+
+function saveGoal() {
+  const text = goalEl.textContent.trim();
+  fetch('/api/goal', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  }).catch(() => {});
+}
+
+goalEl.addEventListener('blur', () => {
+  clearTimeout(goalSaveTimer);
+  saveGoal();
+});
+
+goalEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    goalEl.blur();
+  }
+});
