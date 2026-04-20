@@ -488,15 +488,15 @@ body {
 }
 
 .modal-close {
-	background: var(--bg);
+	background: transparent;
 	border: none;
 	color: var(--text-faint);
-	font-size: 1.1rem;
 	cursor: pointer;
-	line-height: 1;
-	padding: 4px 7px;
-	border-radius: 6px;
-	flex-shrink: 0;
+	padding: 4px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	transition: all var(--transition);
 }
 
