@@ -556,7 +556,7 @@ const server = http.createServer(async (req, res) => {
 			const body = await readBody(req);
 			const text = (body.text || "").trim();
 			fs.writeFileSync(GOAL_FILE, text + "\n", "utf-8");
-			autoCommit(`goal: ${text.slice(0, 50)}`);
+			gitCommit(`goal: ${text.slice(0, 50)}`, [GOAL_FILE]);
 			log(`Goal updated: "${text.slice(0, 60)}"`);
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ ok: true }));
