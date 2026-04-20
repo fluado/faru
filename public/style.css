@@ -75,8 +75,8 @@ body {
 	font-family: var(--font);
 	background: var(--bg);
 	color: var(--text);
-	min-height: 100vh;
-	overflow-x: hidden;
+	height: 100vh;
+	overflow: hidden;
 	-webkit-font-smoothing: antialiased;
 	font-size: 14px;
 	line-height: 1.5;
