@@ -280,7 +280,7 @@ If a separate repo isn't an option, you can set `"autoSync": false` to disable a
 <details>
 <summary>Does faru follow semver?</summary>
 
-No. We ship updates to `main` when something is ready. There are no stability guarantees between runs of `npx github:fluado/faru`. If you need a pinned version, fork the repo.
+No. We ship updates to `main` when something is ready. There are no stability guarantees between runs of `npx github:fluado/faru`. If you need a pinned version, reference a specific commit (`npx github:fluado/faru#<commit>`) or fork the repo.
 
 </details>
 
