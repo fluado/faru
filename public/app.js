@@ -805,46 +805,50 @@ function renderDispatchChain() {
     container.appendChild(el);
   });
 
-  // Container-level drop zone
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const items = [...container.querySelectorAll('.dispatch-skill-item:not(.dragging)')];
-    items.forEach(item => item.classList.remove('drag-above', 'drag-below'));
-    const target = items.find(item => {
-      const rect = item.getBoundingClientRect();
-      return e.clientY < rect.top + rect.height / 2;
-    });
-    if (target) {
-      target.classList.add('drag-above');
-    } else if (items.length > 0) {
-      items[items.length - 1].classList.add('drag-below');
-    }
-  });
+  // Container-level drop zone — set up once
+  if (!container._dragSetup) {
+    container._dragSetup = true;
 
-  container.addEventListener('drop', (e) => {
-    e.preventDefault();
-    if (dragFromIndex === null) return;
-    const items = [...container.querySelectorAll('.dispatch-skill-item:not(.dragging)')];
-    items.forEach(item => item.classList.remove('drag-above', 'drag-below'));
-
-    // Find insertion index
-    let toIdx = dispatchChain.length - 1;
-    for (let j = 0; j < items.length; j++) {
-      const rect = items[j].getBoundingClientRect();
-      if (e.clientY < rect.top + rect.height / 2) {
-        toIdx = parseInt(items[j].dataset.index, 10);
-        break;
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const items = [...container.querySelectorAll('.dispatch-skill-item:not(.dragging)')];
+      items.forEach(item => item.classList.remove('drag-above', 'drag-below'));
+      const target = items.find(item => {
+        const rect = item.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      });
+      if (target) {
+        target.classList.add('drag-above');
+      } else if (items.length > 0) {
+        items[items.length - 1].classList.add('drag-below');
       }
-    }
+    });
 
-    if (dragFromIndex === toIdx) return;
-    const [moved] = dispatchChain.splice(dragFromIndex, 1);
-    if (toIdx > dragFromIndex) toIdx--;
-    dispatchChain.splice(toIdx, 0, moved);
-    dragFromIndex = null;
-    renderDispatchChain();
-  });
+    container.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (dragFromIndex === null) return;
+      const items = [...container.querySelectorAll('.dispatch-skill-item:not(.dragging)')];
+      items.forEach(item => item.classList.remove('drag-above', 'drag-below'));
+
+      // Find insertion index
+      let toIdx = dispatchChain.length - 1;
+      for (let j = 0; j < items.length; j++) {
+        const rect = items[j].getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+          toIdx = parseInt(items[j].dataset.index, 10);
+          break;
+        }
+      }
+
+      if (dragFromIndex === toIdx) return;
+      const [moved] = dispatchChain.splice(dragFromIndex, 1);
+      if (toIdx > dragFromIndex) toIdx--;
+      dispatchChain.splice(toIdx, 0, moved);
+      dragFromIndex = null;
+      renderDispatchChain();
+    });
+  }
 
   // Update start button
   const startBtn = document.getElementById('dispatch-start');
