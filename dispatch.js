@@ -244,7 +244,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		// Clean up any stale sentinel
 		try { fs.unlinkSync(sentinelAbsPath); } catch (_) {}
 
-		const prompt = composePrompt(step, card, state.log, fns.skillsDir, sentinelPath, agentConfig.skillsRefPath);
+		const prompt = composePrompt(step, card, state.log, fns.skillsDir, sentinelPath);
 		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
 		const duration = formatDuration(Date.now() - skillStart);
 
