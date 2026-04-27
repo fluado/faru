@@ -103,66 +103,44 @@ function suggestChain(card, availableSkills) {
 // ---------------------------------------------------------------------------
 
 function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
+	const repoName = path.basename(process.cwd());
 	const parts = [];
 
-	// 1. Skill persona — reference via @[path] so the IDE loads it as context
-	//    Use repoName/skills/filename — skillsDir may be absolute, so derive from basename
+	// Skill persona
 	const skillFile = step.skill + ".md";
 	const skillPath = path.join(skillsDir, skillFile);
 	if (fs.existsSync(skillPath)) {
-		const repoName = path.basename(process.cwd());
 		const skillsDirName = path.basename(path.resolve(skillsDir));
-		const refPath = `${repoName}/${skillsDirName}/${skillFile}`;
-		parts.push(`Act as @[${refPath}].`);
+		parts.push(`Act as @[${repoName}/${skillsDirName}/${skillFile}].`);
 	}
 
-	parts.push("");
-	parts.push("## Your task");
-	parts.push("");
-	parts.push(`**Card**: ${card.title}`);
-	parts.push(`**Card folder**: backlog/${card.slug}/`);
-
-	if (card.goal) {
-		parts.push(`**Description**: ${card.goal}`);
-	}
-
+	// Card files — the IDE loads these as context
 	if (card.files && card.files.length > 0) {
-		parts.push("");
-		parts.push("### Card files");
-		const repoName = path.basename(process.cwd());
-		for (const f of card.files) {
-			parts.push(`- @[${repoName}/backlog/${card.slug}/${f}]`);
-		}
+		const refs = card.files
+			.map((f) => `@[${repoName}/backlog/${card.slug}/${f}]`)
+			.join(" ");
+		parts.push(`Read ${refs}.`);
 	}
 
 	// Previous phase outputs
 	const completedSteps = previousLog.filter((l) => l.status === "done");
 	if (completedSteps.length > 0) {
-		parts.push("");
-		parts.push("### Previous phase outputs");
 		parts.push(
-			"The following skills have already completed and their outputs are in the card folder. Read them before starting.",
+			`Previous skills completed: ${completedSteps.map((l) => l.skill).join(", ")}. Their outputs are in the card folder.`,
 		);
-		for (const l of completedSteps) {
-			parts.push(`- **${l.skill}** completed (${l.durationFormatted})`);
-		}
 	}
 
 	// User-provided per-skill context
 	if (step.context && step.context.trim()) {
-		parts.push("");
-		parts.push("### Additional context from the user");
 		parts.push(step.context.trim());
 	}
 
-	// Sentinel: instruct agent to signal completion
-	parts.push("");
-	parts.push("### Completion signal");
+	// Sentinel
 	parts.push(
-		`When you have fully completed your work, create a file at \`${sentinelPath}\` with content \`done\`. This signals the dispatch system that you are finished. Do this as your very last action.`,
+		`When done, create \`${sentinelPath}\` with content \`done\`.`,
 	);
 
-	return parts.join("\n");
+	return parts.join(" ");
 }
 
 // ---------------------------------------------------------------------------
