@@ -374,33 +374,55 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 }
 
 async function triggerNewChat(port) {
-	const targets = await resolveTargets(port);
-	for (const target of targets) {
-		try {
-			const client = await CDP({ target: target.webSocketDebuggerUrl });
-			const { Input } = client;
+	const target = await getPinnedTarget(port);
+	if (!target) return false;
 
-			// Cmd+Shift+L — new chat in Antigravity IDE
-			await Input.dispatchKeyEvent({
-				type: "keyDown",
-				key: "l",
-				code: "KeyL",
-				windowsVirtualKeyCode: 76,
-				nativeVirtualKeyCode: 76,
-				modifiers: 4 | 8, // Meta (4) + Shift (8)
-			});
-			await Input.dispatchKeyEvent({
-				type: "keyUp",
-				key: "l",
-				code: "KeyL",
-				windowsVirtualKeyCode: 76,
-				nativeVirtualKeyCode: 76,
-				modifiers: 4 | 8,
-			});
+	try {
+		const client = await CDP({ target: target.webSocketDebuggerUrl });
+		const { Input } = client;
 
-			await client.close();
-			return true;
-		} catch (_) {}
+		// Step 1: Cmd+E — focus/open the agent panel
+		await Input.dispatchKeyEvent({
+			type: "keyDown",
+			key: "e",
+			code: "KeyE",
+			windowsVirtualKeyCode: 69,
+			nativeVirtualKeyCode: 69,
+			modifiers: 4, // Meta
+		});
+		await Input.dispatchKeyEvent({
+			type: "keyUp",
+			key: "e",
+			code: "KeyE",
+			windowsVirtualKeyCode: 69,
+			nativeVirtualKeyCode: 69,
+			modifiers: 4,
+		});
+		await sleep(1000);
+
+		// Step 2: Cmd+Shift+L — new chat
+		await Input.dispatchKeyEvent({
+			type: "keyDown",
+			key: "l",
+			code: "KeyL",
+			windowsVirtualKeyCode: 76,
+			nativeVirtualKeyCode: 76,
+			modifiers: 4 | 8, // Meta + Shift
+		});
+		await Input.dispatchKeyEvent({
+			type: "keyUp",
+			key: "l",
+			code: "KeyL",
+			windowsVirtualKeyCode: 76,
+			nativeVirtualKeyCode: 76,
+			modifiers: 4 | 8,
+		});
+
+		await client.close();
+		return true;
+	} catch (_) {}
+	return false;
+}
 	}
 	return false;
 }
