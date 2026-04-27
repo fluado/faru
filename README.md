@@ -244,7 +244,48 @@ faru ships with a driver for [Antigravity](https://antigravity.dev) that dispatc
 | `timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
 | `workspacePattern` | Substring to match against Antigravity window titles when selecting a target |
 
-Skills are markdown files in the skills directory. Each skill can specify a preferred model via YAML frontmatter (`model: opus-4.6`). When dispatching a card, you chain one or more skills — each runs in a fresh chat session. The driver interface is pluggable — add your own under `drivers/`.
+Skills are markdown files in the skills directory. Each skill can specify behaviour via YAML frontmatter:
+
+```yaml
+---
+model: opus-4.6
+phase: 2
+produces: *-design*.md
+excludeTypes: legal, ops
+default: true
+---
+
+Act like a ...
+```
+
+| Field | Description |
+|---|---|
+| `model` | Preferred model for this skill (driver-specific identifier) |
+| `phase` | Ordering in the suggested chain — lower numbers run first. Skills without a `phase` are not included in auto-suggested chains |
+| `produces` | Glob pattern for the artifact this skill creates. If a card already contains a matching file, the skill is skipped |
+| `excludeTypes` | Comma-separated card categories to skip (e.g. `legal, ops`) |
+| `default` | Set to `true` to mark this skill as the fallback when no other skills match |
+
+When dispatching a card, you chain one or more skills — each runs in a fresh chat session. The driver interface is pluggable — add your own under `drivers/`.
+
+#### Verification Pass
+
+After each skill completes, faru can send a follow-up prompt in the same session asking the agent to audit its own work. Enable it via the `verify` field:
+
+```json
+{
+  "agent": {
+    "verify": true,
+    "verify": "Review every acceptance criterion. Confirm each is done or fix it."
+  }
+}
+```
+
+| Value | Behaviour |
+|---|---|
+| `true` | Sends a generic audit prompt after each skill |
+| `"custom prompt"` | Sends your custom prompt instead |
+| omitted / `false` | No verification pass |
 
 ## Creating Cards
 
