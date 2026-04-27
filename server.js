@@ -938,6 +938,7 @@ const server = http.createServer(async (req, res) => {
 				},
 				updateCard,
 				skillsDir: agentSkillsDir,
+				backlogDir: BACKLOG_DIR,
 				log,
 				notifyReload: () => notifyLiveReload(),
 			}).catch(e => {
