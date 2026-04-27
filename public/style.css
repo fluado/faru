@@ -1388,7 +1388,7 @@ body.archive-mode .btn-column-add {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
-	flexibility: none;
+	flex-shrink: 0;
 }
 
 .available .dispatch-availability-dot {
