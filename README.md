@@ -230,7 +230,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 
 ## Features
 
-- **Zero dependencies** — single `server.js`, no `node_modules`
+- **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with an Antigravity CDP driver). Skills are markdown files, chain them per card
 - **Weekly Goal** — set a high-level focus via an editable board banner that saves directly to `weekly-goal.md` in your project root
 - **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
 - **External links** — attach references or external spec folders to any card via a `links:` array in the YAML frontmatter
