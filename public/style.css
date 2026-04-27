@@ -323,25 +323,26 @@ body {
 	opacity: 0.35;
 }
 
-.card.unread .card-title {
-	display: flex;
-	align-items: center;
-	gap: 7px;
+.card.unread {
+	position: relative;
 }
 
-.card.unread .card-title::after {
+.card.unread::after {
 	content: '';
+	position: absolute;
+	right: 14px;
+	top: 50%;
+	transform: translateY(-50%);
 	width: 7px;
 	height: 7px;
 	border-radius: 50%;
-	background: var(--accent);
-	flex-shrink: 0;
-	animation: unread-pulse 2s ease-in-out infinite;
+	animation: unread-cycle 3s ease-in-out infinite;
 }
 
-@keyframes unread-pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.35; }
+@keyframes unread-cycle {
+	0%, 100% { background: #a78bfa; }
+	33% { background: #ef4444; }
+	66% { background: #3b82f6; }
 }
 
 .card-title {
