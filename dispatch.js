@@ -46,8 +46,8 @@ function listSkills(skillsDir) {
 function deriveSkillName(id, content) {
 	// Try to extract from "Act like a ..." on the first line
 	const firstLine = content.split("\n")[0] || "";
-	const match = firstLine.match(/^Act like (?:a |an )?(.+?)\.?\s*$/i);
-	if (match) return match[1];
+	const match = firstLine.match(/^Act like (?:a |an )?(.+?)[\.\,]/i);
+	if (match) return match[1].trim();
 
 	// Fallback: humanize the filename
 	return id
