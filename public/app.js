@@ -732,7 +732,7 @@ function updateDispatchUI(s) {
     btn.disabled = false;
     btn.onclick = abortDispatch;
   } else {
-    btn.textContent = '⚡ Dispatch to Agent';
+    btn.textContent = '🤖 Dispatch to Agent';
     btn.classList.remove('dispatch-running');
     btn.disabled = false;
     btn.onclick = null; // handled by setupDispatchModal
@@ -897,7 +897,7 @@ function setupDispatchModal() {
     if (!card) return;
 
     // Set title and context
-    document.getElementById('dispatch-title').textContent = `⚡ Dispatch: ${card.title}`;
+    document.getElementById('dispatch-title').textContent = `🤖 Dispatch: ${card.title}`;
     const contextText = document.getElementById('dispatch-context-text');
     contextText.textContent = card.goal || 'No description set.';
 
@@ -919,6 +919,33 @@ function setupDispatchModal() {
     startBtn.disabled = dispatchChain.length === 0;
 
     document.getElementById('dispatch-overlay').classList.add('open');
+
+    // Check agent availability
+    const avail = document.getElementById('dispatch-availability');
+    const availText = document.getElementById('dispatch-availability-text');
+    avail.className = 'dispatch-availability checking';
+    availText.textContent = 'Checking agent…';
+    startBtn.disabled = true;
+
+    try {
+      const availRes = await fetch('/api/dispatch/available');
+      const availData = await availRes.json();
+      if (availData.available) {
+        avail.className = 'dispatch-availability available';
+        availText.textContent = 'Agent is idle and ready';
+        startBtn.disabled = dispatchChain.length === 0;
+      } else {
+        avail.className = 'dispatch-availability unavailable';
+        availText.textContent = availData.reason
+          ? `Agent unavailable: ${availData.reason}`
+          : 'Agent is not available — is the IDE running with CDP enabled?';
+        startBtn.disabled = true;
+      }
+    } catch (_) {
+      avail.className = 'dispatch-availability unavailable';
+      availText.textContent = 'Could not reach agent';
+      startBtn.disabled = true;
+    }
   });
 }
 
