@@ -843,6 +843,23 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
+	if (url.pathname === "/api/dispatch/available" && req.method === "GET") {
+		if (!agentDriver || !agentConfig) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ available: false, reason: "not configured" }));
+			return;
+		}
+		try {
+			const available = await agentDriver.isAvailable(agentConfig);
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ available }));
+		} catch (e) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ available: false, reason: e.message }));
+		}
+		return;
+	}
+
 	if (url.pathname.match(/^\/api\/cards\/[^/]+\/dispatch$/) && req.method === "POST") {
 		if (!agentDriver || !agentConfig) {
 			res.writeHead(400, { "Content-Type": "application/json" });
