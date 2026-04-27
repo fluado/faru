@@ -1159,3 +1159,207 @@ body.archive-mode .btn-column-add {
 .btn-add-task:hover {
 	color: var(--accent-text);
 }
+
+/* === Dispatch === */
+
+.btn-dispatch {
+	background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+	color: #fff;
+	font-weight: 600;
+	box-shadow: 0 1px 3px rgba(124, 58, 237, 0.25);
+	transition: all var(--transition);
+}
+
+.btn-dispatch:hover {
+	box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+	transform: translateY(-0.5px);
+	color: #fff;
+}
+
+.btn-dispatch:disabled {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.btn-dispatch.dispatch-running {
+	background: var(--amber-bg);
+	color: var(--amber-text);
+	box-shadow: none;
+	animation: dispatchPulse 2s ease-in-out infinite;
+}
+
+@keyframes dispatchPulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.7; }
+}
+
+.modal-dispatch {
+	max-width: 520px;
+	padding: 24px;
+}
+
+.dispatch-context {
+	margin-bottom: 16px;
+}
+
+.dispatch-context-text {
+	font-size: 0.8125rem;
+	color: var(--text-muted);
+	background: var(--bg);
+	border-radius: 8px;
+	padding: 10px 12px;
+	line-height: 1.5;
+	max-height: 80px;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+}
+
+.dispatch-chain-zone {
+	margin-bottom: 12px;
+}
+
+.dispatch-chain {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 8px;
+	min-height: 40px;
+}
+
+.dispatch-skill-item {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	transition: box-shadow var(--transition);
+}
+
+.dispatch-skill-item:hover {
+	box-shadow: var(--shadow-sm);
+}
+
+.dispatch-skill-item.dragging {
+	opacity: 0.4;
+}
+
+.dispatch-skill-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dispatch-skill-handle {
+	cursor: grab;
+	color: var(--text-faint);
+	font-size: 0.875rem;
+	user-select: none;
+	flex-shrink: 0;
+}
+
+.dispatch-skill-handle:active {
+	cursor: grabbing;
+}
+
+.dispatch-skill-index {
+	font-size: 0.6875rem;
+	font-weight: 600;
+	color: var(--text-faint);
+	min-width: 18px;
+}
+
+.dispatch-skill-name {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text);
+	flex: 1;
+}
+
+.dispatch-skill-remove {
+	background: none;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 2px 4px;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	transition: all var(--transition);
+}
+
+.dispatch-skill-remove:hover {
+	color: var(--red-text);
+	background: var(--red-bg);
+}
+
+.dispatch-skill-context {
+	font-family: var(--font);
+	font-size: 0.75rem;
+	padding: 6px 8px;
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	background: var(--bg);
+	color: var(--text);
+	resize: none;
+	outline: none;
+	min-height: 28px;
+	max-height: 60px;
+	transition: all var(--transition);
+}
+
+.dispatch-skill-context:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+.dispatch-add-skill {
+	margin-bottom: 4px;
+}
+
+.dispatch-skill-dropdown {
+	font-family: var(--font);
+	font-size: 0.75rem;
+	font-weight: 500;
+	padding: 5px 28px 5px 10px;
+	border-radius: 6px;
+	border: 1px dashed var(--border);
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+	transition: all var(--transition);
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 8px center;
+}
+
+.dispatch-skill-dropdown:hover {
+	border-color: var(--accent);
+	color: var(--accent-text);
+}
+
+.dispatch-hint {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	margin-bottom: 16px;
+}
+
+.dispatch-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+/* Card dispatch indicator on the board tile */
+.card-dispatch-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--amber);
+	display: inline-block;
+	animation: dispatchPulse 1.5s ease-in-out infinite;
+	margin-right: 4px;
+	vertical-align: middle;
+}
