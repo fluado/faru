@@ -313,7 +313,7 @@ No. We ship updates to `main` when something is ready. There are no stability gu
 <details>
 <summary>Can I use dispatch with Cursor, Claude Code, Gemini CLI, etc.?</summary>
 
-Not yet, but the driver interface is simple. The Antigravity driver in `drivers/antigravity.js` is the only one that ships today — it works via CDP. To support another agent, create a new file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, and `abort`. Set `"driver": "your-driver"` in the config and faru will load it. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
+Only an Antigravity driver ships today. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, and `abort`, then set `"driver": "your-driver"` in the config. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
 
 </details>
 
