@@ -3,6 +3,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { execFile, execFileSync } = require("child_process");
+const dispatch = require("./dispatch");
 
 const DOCS_ROOT = process.cwd();
 
@@ -37,6 +38,22 @@ const PORT = config.port;
 const BACKLOG_DIR = path.resolve(DOCS_ROOT, config.backlogDir);
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, "archive");
 const GOAL_FILE = path.join(DOCS_ROOT, "weekly-goal.md");
+
+// --- Agent dispatch (optional) ---
+const agentConfig = config.agent || null;
+let agentDriver = null;
+let agentSkillsDir = null;
+
+if (agentConfig) {
+	try {
+		agentDriver = require(`./drivers/${agentConfig.driver}`);
+		agentSkillsDir = path.resolve(DOCS_ROOT, agentConfig.skills || "./skills");
+		log(`🤖 Agent dispatch enabled — driver: ${agentConfig.driver}, skills: ${agentConfig.skills}`);
+	} catch (e) {
+		console.error(`⚠  Failed to load agent driver "${agentConfig.driver}": ${e.message}`);
+		console.error(`   Dispatch feature will be disabled.`);
+	}
+}
 
 function resolveGitUser() {
 	try {
@@ -538,6 +555,7 @@ const server = http.createServer(async (req, res) => {
 			JSON.stringify({
 				cardCategories: config.cardCategories,
 				port: config.port,
+				agentEnabled: !!(agentConfig && agentDriver),
 			}),
 		);
 		return;
@@ -796,6 +814,156 @@ const server = http.createServer(async (req, res) => {
 			res.end(JSON.stringify({ opened: true, path: path.basename(target) }));
 		} catch (e) {
 			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
+	// --- Agent Dispatch Routes ---
+
+	if (url.pathname === "/api/dispatch/status" && req.method === "GET") {
+		res.writeHead(200, { "Content-Type": "application/json" });
+		const s = dispatch.getState();
+		res.end(JSON.stringify({
+			status: s.status,
+			currentCard: s.card?.slug || null,
+			currentSkill: s.chain[s.currentIndex]?.skill || null,
+			chainIndex: s.currentIndex,
+			chainLength: s.chain.length,
+			startedAt: s.startedAt,
+			log: s.log,
+		}));
+		return;
+	}
+
+	if (url.pathname === "/api/dispatch/skills" && req.method === "GET") {
+		const skills = agentSkillsDir ? dispatch.listSkills(agentSkillsDir) : [];
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify(skills));
+		return;
+	}
+
+	if (url.pathname.match(/^\/api\/cards\/[^/]+\/dispatch$/) && req.method === "POST") {
+		if (!agentDriver || !agentConfig) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Agent dispatch not configured" }));
+			return;
+		}
+		const ds = dispatch.getState();
+		if (ds.status === "running") {
+			res.writeHead(409, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "A dispatch is already running", currentCard: ds.card?.slug }));
+			return;
+		}
+		try {
+			const slug = decodeURIComponent(url.pathname.split("/")[3]);
+			const body = await readBody(req);
+			const chain = body.chain;
+			if (!chain || !Array.isArray(chain) || chain.length === 0) {
+				res.writeHead(400, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "chain is required and must be a non-empty array" }));
+				return;
+			}
+
+			// Find the card data
+			const allCards = scanCards();
+			const card = allCards.find(c => c.slug === slug);
+			if (!card) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Card not found" }));
+				return;
+			}
+
+			// Read card body for the prompt
+			const folderPath = path.join(BACKLOG_DIR, slug);
+			const canonical = findCanonicalFile(folderPath);
+			let cardBody = "";
+			if (canonical) {
+				const content = fs.readFileSync(canonical, "utf-8");
+				const parsed = parseFrontmatter(content);
+				cardBody = parsed.body;
+			}
+
+			const cardData = {
+				slug: card.slug,
+				title: card.title,
+				goal: card.goal,
+				type: card.type,
+				files: card.files,
+				body: cardBody,
+			};
+
+			// Respond immediately — dispatch runs async
+			res.writeHead(202, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ dispatched: true, slug, chain: chain.map(s => s.skill) }));
+
+			// Fire and forget
+			dispatch.runDispatch(cardData, chain, agentDriver, agentConfig, {
+				addComment: (s, text, author) => {
+					const origUser = gitUser;
+					// Write comment with faru-agent author
+					const folderP = path.join(BACKLOG_DIR, s);
+					if (!fs.existsSync(folderP)) return;
+					const cardMd = path.join(folderP, "CARD.md");
+					const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderP);
+					if (!target) return;
+					const content = fs.readFileSync(target, "utf-8");
+					const now = new Date();
+					const date = now.toISOString().slice(0, 10);
+					const time = now.toTimeString().slice(0, 5);
+					const line = `- **${author || "faru-agent"}** (${date} ${time}): ${text}`;
+					let updated;
+					if (content.includes("## Comments")) {
+						updated = content.trimEnd() + "\n" + line + "\n";
+					} else {
+						updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
+					}
+					fs.writeFileSync(target, updated, "utf-8");
+				},
+				updateCard,
+				skillsDir: agentSkillsDir,
+				log,
+				notifyReload: () => notifyLiveReload(),
+			}).catch(e => {
+				log(`❌ Dispatch crashed: ${e.message}`);
+			});
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
+	if (url.pathname === "/api/dispatch/abort" && req.method === "POST") {
+		if (!agentDriver) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Agent dispatch not configured" }));
+			return;
+		}
+		const slug = dispatch.abortDispatch();
+		if (slug && agentDriver) {
+			try { await agentDriver.abort(agentConfig); } catch (_) {}
+			try {
+				// Add abort comment
+				const s = dispatch.getState();
+				addComment(slug, `⛔ Dispatch aborted by user`);
+			} catch (_) {}
+			notifyLiveReload();
+		}
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify({ aborted: !!slug, slug }));
+		return;
+	}
+
+	if (url.pathname === "/api/dispatch/suggest" && req.method === "POST") {
+		try {
+			const body = await readBody(req);
+			const skills = agentSkillsDir ? dispatch.listSkills(agentSkillsDir) : [];
+			const chain = dispatch.suggestChain(body, skills);
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(chain));
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: e.message }));
 		}
 		return;

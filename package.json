@@ -6,5 +6,8 @@
 		"faru": "./server.js"
 	},
 	"license": "MIT",
-	"repository": "fluado/faru"
+	"repository": "fluado/faru",
+	"dependencies": {
+		"chrome-remote-interface": "0.34.0"
+	}
 }
