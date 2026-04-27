@@ -1007,15 +1007,11 @@ function updateDispatchButton(card) {
   }
 }
 
-// Patch openDetail to call updateDispatchButton + mark as seen
+// Patch openDetail to call updateDispatchButton
 const _originalOpenDetail = openDetail;
 openDetail = function(card) {
   _originalOpenDetail(card);
   updateDispatchButton(card);
-  markCardSeen(card.slug);
-  // Remove unread styling from the tile immediately
-  const tile = document.querySelector(`.card[data-slug="${card.slug}"]`);
-  if (tile) tile.classList.remove('unread');
 };
 
 // Escape key closes dispatch modal too
