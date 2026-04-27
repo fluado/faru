@@ -102,16 +102,16 @@ function suggestChain(card, availableSkills) {
 // Prompt composition
 // ---------------------------------------------------------------------------
 
-function composePrompt(step, card, previousLog, skillsDir, sentinelPath, skillsRefPath) {
+function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 	const parts = [];
 
 	// 1. Skill persona — reference via @[path] so the IDE loads it as context
+	//    Derive IDE-relative path: repoFolderName/skills/skill-file.md
 	const skillFile = step.skill + ".md";
 	const skillPath = path.join(skillsDir, skillFile);
 	if (fs.existsSync(skillPath)) {
-		const refPath = skillsRefPath
-			? `${skillsRefPath}/${skillFile}`
-			: skillPath;
+		const repoName = path.basename(process.cwd());
+		const refPath = `${repoName}/${skillsDir.replace(/^\.\//, "")}/${skillFile}`;
 		parts.push(`Act as @[${refPath}].`);
 	}
 
