@@ -424,6 +424,62 @@ async function triggerNewChat(port) {
 	return false;
 }
 
+// Map config model IDs to IDE button text substrings
+const MODEL_MAP = {
+	"opus-4.6": "Opus 4.6",
+	"sonnet-4.6": "Sonnet 4.6",
+	"gemini-pro-3.1-high": "Gemini 3.1 Pro (High)",
+	"gemini-pro-3.1-low": "Gemini 3.1 Pro (Low)",
+	"gemini-3-flash": "Gemini 3 Flash",
+	"gpt-oss-120b": "GPT-OSS 120B",
+};
+
+async function selectModel(port, modelId) {
+	if (!modelId || !MODEL_MAP[modelId]) return;
+	const target = await getPinnedTarget(port);
+	if (!target) return;
+
+	const needle = MODEL_MAP[modelId];
+	try {
+		const client = await CDP({ target: target.webSocketDebuggerUrl });
+		const { Runtime } = client;
+		await Runtime.enable();
+
+		// Check if already selected
+		const currentCheck = await Runtime.evaluate({
+			expression: `(() => {
+  const active = document.querySelector('.flex.min-w-0.max-w-full.cursor-pointer');
+  return active ? active.textContent.trim() : '';
+})()`,
+			returnByValue: true,
+		});
+		const current = currentCheck.result?.value || "";
+		if (current.includes(needle)) {
+			await client.close();
+			return; // already selected
+		}
+
+		// Click the model selector to open dropdown, then click the target model
+		await Runtime.evaluate({
+			expression: `(() => {
+  const selector = document.querySelector('.flex.min-w-0.max-w-full.cursor-pointer');
+  if (selector) selector.click();
+})()`,
+		});
+		await sleep(500);
+
+		await Runtime.evaluate({
+			expression: `(() => {
+  const btns = Array.from(document.querySelectorAll('button'));
+  const target = btns.find(b => b.textContent.includes('${needle}') && b.className.includes('px-2'));
+  if (target) target.click();
+})()`,
+		});
+		await sleep(500);
+		await client.close();
+	} catch (_) {}
+}
+
 async function stopAgent(port) {
 	const targets = await resolveTargets(port);
 	for (const target of targets) {
