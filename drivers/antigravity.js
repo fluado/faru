@@ -31,21 +31,32 @@ function sleep(ms) {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
-async function resolveTargets(port) {
+async function resolveTargets(port, workspacePattern) {
 	const raw = await httpGet(`http://127.0.0.1:${port}/json`);
 	const targets = JSON.parse(raw);
-	return targets
-		.filter(
-			(t) =>
-				(t.type === "page" || t.type === "iframe" || t.type === "webview") &&
-				t.webSocketDebuggerUrl &&
-				!t.url.includes("devtools://"),
-		)
-		.sort((a, b) => {
-			const aM = a.title.toLowerCase().includes("antigravity") ? 1 : 0;
-			const bM = b.title.toLowerCase().includes("antigravity") ? 1 : 0;
-			return bM - aM;
-		});
+	let filtered = targets.filter(
+		(t) =>
+			(t.type === "page" || t.type === "iframe" || t.type === "webview") &&
+			t.webSocketDebuggerUrl &&
+			!t.url.includes("devtools://"),
+	);
+
+	// If a workspace pattern is set, prefer matching targets
+	if (workspacePattern) {
+		const pat = workspacePattern.toLowerCase();
+		const matching = filtered.filter((t) =>
+			t.title.toLowerCase().includes(pat),
+		);
+		if (matching.length > 0) {
+			filtered = matching;
+		}
+	}
+
+	return filtered.sort((a, b) => {
+		const aM = a.title.toLowerCase().includes("antigravity") ? 1 : 0;
+		const bM = b.title.toLowerCase().includes("antigravity") ? 1 : 0;
+		return bM - aM;
+	});
 }
 
 // DOM expression to extract visible chat text
