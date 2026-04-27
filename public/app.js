@@ -3,6 +3,27 @@ let cards = [];
 let currentUser = '';
 let isArchiveView = false;
 
+// --- Unread tracking ---
+// A card is "unread" when the latest faru-agent comment is a dispatch-complete
+// message (🎉) and the user hasn't opened the card detail since.
+function isCardUnread(card) {
+  if (!card.comments || card.comments.length === 0) return false;
+  const agentComments = card.comments.filter(c => c.author === 'faru-agent');
+  if (agentComments.length === 0) return false;
+  const latest = agentComments[agentComments.length - 1];
+  if (!latest.text.startsWith('🎉')) return false;
+  const seen = localStorage.getItem(`faru-seen:${card.slug}`);
+  if (!seen) return true;
+  // Compare against comment date (YYYY-MM-DD HH:MM format)
+  return latest.date > seen;
+}
+
+function markCardSeen(slug) {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10) + ' ' + now.toTimeString().slice(0, 5);
+  localStorage.setItem(`faru-seen:${slug}`, dateStr);
+}
+
 
 // --- API ---
 
@@ -77,7 +98,7 @@ async function submitComment(slug, text) {
 
 function renderCard(card) {
   const el = document.createElement('div');
-  el.className = 'card';
+  el.className = 'card' + (isCardUnread(card) ? ' unread' : '');
   el.draggable = true;
   el.dataset.slug = card.slug;
 
@@ -994,11 +1015,15 @@ function updateDispatchButton(card) {
   }
 }
 
-// Patch openDetail to call updateDispatchButton
+// Patch openDetail to call updateDispatchButton + mark as seen
 const _originalOpenDetail = openDetail;
 openDetail = function(card) {
   _originalOpenDetail(card);
   updateDispatchButton(card);
+  markCardSeen(card.slug);
+  // Remove unread styling from the tile immediately
+  const tile = document.querySelector(`.card[data-slug="${card.slug}"]`);
+  if (tile) tile.classList.remove('unread');
 };
 
 // Escape key closes dispatch modal too
