@@ -323,6 +323,14 @@ body {
 	opacity: 0.35;
 }
 
+.card.unread {
+	border-left: 3px solid var(--accent);
+}
+
+.card.unread .card-title {
+	font-weight: 700;
+}
+
 .card-title {
 	font-size: 0.8125rem;
 	font-weight: 600;
