@@ -164,10 +164,45 @@
             <div class="detail-linked" id="detail-linked"></div>
           </div>
           <div class="detail-sidebar-actions">
+            <button class="btn btn-dispatch" id="detail-dispatch" style="display:none">⚡ Dispatch to Agent</button>
             <button class="btn btn-danger-subtle" id="detail-archive">Archive</button>
             <button class="btn btn-open" id="detail-open">Open in Editor →</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dispatch Modal -->
+  <div class="modal-overlay" id="dispatch-overlay">
+    <div class="modal modal-dispatch">
+      <div class="modal-header">
+        <h3 id="dispatch-title">⚡ Dispatch</h3>
+        <button class="modal-close" id="dispatch-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="dispatch-context" id="dispatch-context">
+        <label class="detail-section-label">Card context (sent to agent)</label>
+        <div class="dispatch-context-text" id="dispatch-context-text"></div>
+      </div>
+
+      <div class="dispatch-chain-zone">
+        <label class="detail-section-label">Skill chain</label>
+        <div class="dispatch-chain" id="dispatch-chain"></div>
+        <div class="dispatch-add-skill">
+          <select id="dispatch-skill-select" class="dispatch-skill-dropdown">
+            <option value="">+ Add skill</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="dispatch-hint">Each skill runs in a fresh session. Outputs go to the card folder.</div>
+
+      <div class="dispatch-actions">
+        <button class="btn" id="dispatch-cancel">Cancel</button>
+        <button class="btn btn-primary" id="dispatch-start" disabled>▶ Start dispatch</button>
       </div>
     </div>
   </div>
