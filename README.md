@@ -310,6 +310,13 @@ No. We ship updates to `main` when something is ready. There are no stability gu
 
 </details>
 
+<details>
+<summary>Can I use dispatch with Cursor, Claude Code, Gemini CLI, etc.?</summary>
+
+Not yet, but the driver interface is simple. The Antigravity driver in `drivers/antigravity.js` is the only one that ships today — it works via CDP. To support another agent, create a new file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, and `abort`. Set `"driver": "your-driver"` in the config and faru will load it. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
+
+</details>
+
 ## Contributing
 
 We built faru for ourselves. We use it every day at fluado and we're sharing it because it might be useful to others.
