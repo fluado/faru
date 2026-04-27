@@ -451,6 +451,7 @@ module.exports = {
 	},
 
 	async isAvailable(config) {
+		activeWorkspacePattern = config.workspacePattern || null;
 		try {
 			const targets = await resolveTargets(config.cdpPort);
 			for (const target of targets) {
@@ -472,6 +473,7 @@ module.exports = {
 	},
 
 	async newSession(config) {
+		activeWorkspacePattern = config.workspacePattern || null;
 		await triggerNewChat(config.cdpPort);
 		await sleep(2000);
 	},
