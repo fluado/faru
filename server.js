@@ -900,7 +900,6 @@ const server = http.createServer(async (req, res) => {
 			// Fire and forget
 			dispatch.runDispatch(cardData, chain, agentDriver, agentConfig, {
 				addComment: (s, text, author) => {
-					const origUser = gitUser;
 					// Write comment with faru-agent author
 					const folderP = path.join(BACKLOG_DIR, s);
 					if (!fs.existsSync(folderP)) return;
@@ -944,9 +943,26 @@ const server = http.createServer(async (req, res) => {
 		if (slug && agentDriver) {
 			try { await agentDriver.abort(agentConfig); } catch (_) {}
 			try {
-				// Add abort comment
-				const s = dispatch.getState();
-				addComment(slug, `⛔ Dispatch aborted by user`);
+				// Write abort comment with faru-agent author
+				const folderP = path.join(BACKLOG_DIR, slug);
+				if (fs.existsSync(folderP)) {
+					const cardMd = path.join(folderP, "CARD.md");
+					const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderP);
+					if (target) {
+						const content = fs.readFileSync(target, "utf-8");
+						const now = new Date();
+						const date = now.toISOString().slice(0, 10);
+						const time = now.toTimeString().slice(0, 5);
+						const line = `- **faru-agent** (${date} ${time}): ⛔ Dispatch aborted by user`;
+						let updated;
+						if (content.includes("## Comments")) {
+							updated = content.trimEnd() + "\n" + line + "\n";
+						} else {
+							updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
+						}
+						fs.writeFileSync(target, updated, "utf-8");
+					}
+				}
 			} catch (_) {}
 			notifyLiveReload();
 		}
