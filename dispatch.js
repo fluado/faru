@@ -283,6 +283,9 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		fns.updateCard(card.slug, { status: "done" });
 	} catch (_) {}
 
+	// Release workspace pin so next dispatch can pick a fresh target
+	if (driver.releaseWorkspace) driver.releaseWorkspace();
+
 	state = {
 		status: "idle",
 		card: null,
