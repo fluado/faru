@@ -220,17 +220,12 @@ Create a `faru.config.json` in your project root:
 | `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
 | `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
 
-### Agent Dispatch (optional)
+### Agent Dispatch — Antigravity (optional)
 
-Add an `agent` block to enable dispatching cards to an AI coding agent. The IDE must be launched with `--remote-debugging-port` matching `cdpPort`.
+faru ships with a driver for [Antigravity](https://antigravity.dev) that dispatches cards to the IDE's built-in agent via Chrome DevTools Protocol. Launch Antigravity with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
 
 ```json
 {
-  "backlogDir": "./backlog",
-  "port": 3333,
-  "cardCategories": ["product", "ops", "bug"],
-  "autoSync": true,
-  "archiveDoneAfterDays": 14,
   "agent": {
     "driver": "antigravity",
     "skills": "./skills",
@@ -243,13 +238,13 @@ Add an `agent` block to enable dispatching cards to an AI coding agent. The IDE 
 
 | Field | Description |
 |---|---|
-| `agent.driver` | Driver name — matches a file in `drivers/` (currently `antigravity`) |
-| `agent.skills` | Path to a directory of skill markdown files, relative to project root |
-| `agent.cdpPort` | Chrome DevTools Protocol port the IDE is listening on |
-| `agent.timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
-| `agent.workspacePattern` | Substring to match against IDE window titles when selecting a target |
+| `driver` | Must be `antigravity` |
+| `skills` | Path to a directory of skill markdown files, relative to project root |
+| `cdpPort` | The `--remote-debugging-port` Antigravity was launched with |
+| `timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
+| `workspacePattern` | Substring to match against Antigravity window titles when selecting a target |
 
-Skills are markdown files in the skills directory. Each skill can specify a preferred model via YAML frontmatter (`model: opus-4.6`). When dispatching a card, you chain one or more skills — each runs in a fresh chat session.
+Skills are markdown files in the skills directory. Each skill can specify a preferred model via YAML frontmatter (`model: opus-4.6`). When dispatching a card, you chain one or more skills — each runs in a fresh chat session. The driver interface is pluggable — add your own under `drivers/`.
 
 ## Creating Cards
 
