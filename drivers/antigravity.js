@@ -557,6 +557,11 @@ module.exports = {
 		await sleep(2000);
 	},
 
+	async setModel(config, modelId) {
+		activeWorkspacePattern = config.workspacePattern || null;
+		await selectModel(config.cdpPort, modelId);
+	},
+
 	async abort(config) {
 		pinnedTarget = null;
 		return await stopAgent(config.cdpPort);
