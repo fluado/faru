@@ -15,6 +15,8 @@ const http = require("http");
 // Internals
 // ---------------------------------------------------------------------------
 
+let activeWorkspacePattern = null;
+
 function httpGet(url) {
 	return new Promise((resolve, reject) => {
 		http
@@ -31,7 +33,7 @@ function sleep(ms) {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
-async function resolveTargets(port, workspacePattern) {
+async function resolveTargets(port) {
 	const raw = await httpGet(`http://127.0.0.1:${port}/json`);
 	const targets = JSON.parse(raw);
 	let filtered = targets.filter(
@@ -42,8 +44,8 @@ async function resolveTargets(port, workspacePattern) {
 	);
 
 	// If a workspace pattern is set, prefer matching targets
-	if (workspacePattern) {
-		const pat = workspacePattern.toLowerCase();
+	if (activeWorkspacePattern) {
+		const pat = activeWorkspacePattern.toLowerCase();
 		const matching = filtered.filter((t) =>
 			t.title.toLowerCase().includes(pat),
 		);
@@ -430,6 +432,7 @@ module.exports = {
 	async execute(prompt, config, sentinelPath) {
 		const port = config.cdpPort;
 		const timeout = (config.timeoutMinutes || 15) * 60_000;
+		activeWorkspacePattern = config.workspacePattern || null;
 		await snapshotChatState(port);
 		await sendViaCDP(prompt, port);
 
