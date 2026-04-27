@@ -62,6 +62,24 @@ async function resolveTargets(port) {
 	});
 }
 
+// Returns the pinned target, or resolves and pins the first matching target
+async function getPinnedTarget(port) {
+	if (pinnedTarget) {
+		// Verify it's still reachable
+		try {
+			const client = await CDP({ target: pinnedTarget.webSocketDebuggerUrl });
+			await client.close();
+			return pinnedTarget;
+		} catch (_) {
+			pinnedTarget = null;
+		}
+	}
+	const targets = await resolveTargets(port);
+	if (targets.length === 0) return null;
+	pinnedTarget = targets[0];
+	return pinnedTarget;
+}
+
 // DOM expression to extract visible chat text
 const CHAT_EXTRACT_EXPR = `
 (function() {
