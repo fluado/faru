@@ -854,17 +854,14 @@ function renderDispatchChain() {
   const startBtn = document.getElementById('dispatch-start');
   startBtn.disabled = dispatchChain.length === 0;
 
-  // Update "add skill" dropdown — filter out skills already in chain
+  // Update "add skill" dropdown — all skills always available (can add duplicates)
   const select = document.getElementById('dispatch-skill-select');
-  const usedIds = new Set(dispatchChain.map(s => s.skill));
   select.innerHTML = '<option value="">+ Add skill</option>';
   for (const s of allSkills) {
-    if (!usedIds.has(s.id)) {
-      const opt = document.createElement('option');
-      opt.value = s.id;
-      opt.textContent = s.name;
-      select.appendChild(opt);
-    }
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    select.appendChild(opt);
   }
 }
 
