@@ -345,15 +345,21 @@ async function stopAgent(port) {
 // ---------------------------------------------------------------------------
 
 module.exports = {
-	async execute(prompt, config) {
+	async execute(prompt, config, sentinelPath) {
 		const port = config.cdpPort;
 		const timeout = (config.timeoutMinutes || 15) * 60_000;
 		await snapshotChatState(port);
 		await sendViaCDP(prompt, port);
-		const completed = await waitForIdle(port, timeout);
+
+		// Race: sentinel file vs idle detection vs timeout
+		const completed = await waitForCompletion(port, timeout, sentinelPath);
 		if (!completed) {
 			await stopAgent(port);
 			return { success: false, output: "Timeout — agent did not finish within " + (config.timeoutMinutes || 15) + " minutes" };
+		}
+		// Clean up sentinel
+		if (sentinelPath) {
+			try { require("fs").unlinkSync(sentinelPath); } catch (_) {}
 		}
 		const output = await getLatestResponse(port);
 		return { success: true, output };
