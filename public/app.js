@@ -749,6 +749,8 @@ async function abortDispatch() {
 }
 
 // Render dispatch chain in the modal
+let dragFromIndex = null;
+
 function renderDispatchChain() {
   const container = document.getElementById('dispatch-chain');
   container.innerHTML = '';
@@ -759,12 +761,11 @@ function renderDispatchChain() {
 
     const el = document.createElement('div');
     el.className = 'dispatch-skill-item';
-    el.draggable = true;
     el.dataset.index = i;
 
     el.innerHTML = `
       <div class="dispatch-skill-header">
-        <span class="dispatch-skill-handle">≡</span>
+        <span class="dispatch-skill-handle" draggable="true">≡</span>
         <span class="dispatch-skill-index">${i + 1}.</span>
         <span class="dispatch-skill-name">${escapeHtml(name)}</span>
         <button class="dispatch-skill-remove" data-index="${i}">✕</button>
@@ -784,33 +785,65 @@ function renderDispatchChain() {
       dispatchChain[i].context = e.target.value;
     });
 
-    // Drag events for reordering
-    el.addEventListener('dragstart', (e) => {
+    // Drag starts from the handle only
+    const handle = el.querySelector('.dispatch-skill-handle');
+    handle.addEventListener('dragstart', (e) => {
+      dragFromIndex = i;
       el.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(i));
     });
 
-    el.addEventListener('dragend', () => {
+    handle.addEventListener('dragend', () => {
       el.classList.remove('dragging');
-    });
-
-    el.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    });
-
-    el.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-      const toIdx = i;
-      if (fromIdx === toIdx) return;
-      const [moved] = dispatchChain.splice(fromIdx, 1);
-      dispatchChain.splice(toIdx, 0, moved);
-      renderDispatchChain();
+      dragFromIndex = null;
+      container.querySelectorAll('.dispatch-skill-item').forEach(item => {
+        item.classList.remove('drag-above', 'drag-below');
+      });
     });
 
     container.appendChild(el);
+  });
+
+  // Container-level drop zone
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const items = [...container.querySelectorAll('.dispatch-skill-item:not(.dragging)')];
+    items.forEach(item => item.classList.remove('drag-above', 'drag-below'));
+    const target = items.find(item => {
+      const rect = item.getBoundingClientRect();
+      return e.clientY < rect.top + rect.height / 2;
+    });
+    if (target) {
+      target.classList.add('drag-above');
+    } else if (items.length > 0) {
+      items[items.length - 1].classList.add('drag-below');
+    }
+  });
+
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (dragFromIndex === null) return;
+    const items = [...container.querySelectorAll('.dispatch-skill-item:not(.dragging)')];
+    items.forEach(item => item.classList.remove('drag-above', 'drag-below'));
+
+    // Find insertion index
+    let toIdx = dispatchChain.length - 1;
+    for (let j = 0; j < items.length; j++) {
+      const rect = items[j].getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        toIdx = parseInt(items[j].dataset.index, 10);
+        break;
+      }
+    }
+
+    if (dragFromIndex === toIdx) return;
+    const [moved] = dispatchChain.splice(dragFromIndex, 1);
+    if (toIdx > dragFromIndex) toIdx--;
+    dispatchChain.splice(toIdx, 0, moved);
+    dragFromIndex = null;
+    renderDispatchChain();
   });
 
   // Update start button
