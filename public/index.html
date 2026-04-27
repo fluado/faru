@@ -164,9 +164,9 @@
             <div class="detail-linked" id="detail-linked"></div>
           </div>
           <div class="detail-sidebar-actions">
-            <button class="btn btn-dispatch" id="detail-dispatch" style="display:none">⚡ Dispatch to Agent</button>
+            <button class="btn btn-primary btn-dispatch" id="detail-dispatch" style="display:none">🤖 Dispatch to Agent</button>
             <button class="btn btn-danger-subtle" id="detail-archive">Archive</button>
-            <button class="btn btn-open" id="detail-open">Open in Editor →</button>
+            <button class="btn btn-open" id="detail-open">Open in Editor</button>
           </div>
         </div>
       </div>
@@ -177,10 +177,15 @@
   <div class="modal-overlay" id="dispatch-overlay">
     <div class="modal modal-dispatch">
       <div class="modal-header">
-        <h3 id="dispatch-title">⚡ Dispatch</h3>
+        <h3 id="dispatch-title">🤖 Dispatch</h3>
         <button class="modal-close" id="dispatch-close">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
+      </div>
+
+      <div class="dispatch-availability checking" id="dispatch-availability">
+        <span class="dispatch-availability-dot"></span>
+        <span id="dispatch-availability-text">Checking agent…</span>
       </div>
 
       <div class="dispatch-context" id="dispatch-context">
