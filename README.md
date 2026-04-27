@@ -243,6 +243,7 @@ faru ships with a driver for [Antigravity](https://antigravity.dev) that dispatc
 | `cdpPort` | The `--remote-debugging-port` Antigravity was launched with |
 | `timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
 | `workspacePattern` | Substring to match against Antigravity window titles when selecting a target |
+| `verify` | `true` for a generic audit prompt, or a custom prompt string. Omit to disable |
 
 Skills are markdown files in the skills directory. Each skill can specify behaviour via YAML frontmatter:
 
@@ -296,7 +297,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 
 ## Features
 
-- **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with an Antigravity CDP driver). Skills are markdown files, chain them per card
+- **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with an Antigravity CDP driver). Skills are markdown files that self-describe their chain ordering via frontmatter. After each skill completes, an optional verification pass prompts the agent to audit its own work before moving on
 - **Weekly Goal** — set a high-level focus via an editable board banner that saves directly to `weekly-goal.md` in your project root
 - **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
 - **External links** — attach references or external spec folders to any card via a `links:` array in the YAML frontmatter
