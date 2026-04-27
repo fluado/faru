@@ -200,7 +200,7 @@ To break a card into milestones, tell your agent:
 
 ## Config
 
-Create a `faru.config.json` in your project root (all fields required):
+Create a `faru.config.json` in your project root:
 
 ```json
 {
@@ -219,6 +219,37 @@ Create a `faru.config.json` in your project root (all fields required):
 | `cardCategories` | Category labels for the type dropdown |
 | `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
 | `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
+
+### Agent Dispatch (optional)
+
+Add an `agent` block to enable dispatching cards to an AI coding agent. The IDE must be launched with `--remote-debugging-port` matching `cdpPort`.
+
+```json
+{
+  "backlogDir": "./backlog",
+  "port": 3333,
+  "cardCategories": ["product", "ops", "bug"],
+  "autoSync": true,
+  "archiveDoneAfterDays": 14,
+  "agent": {
+    "driver": "antigravity",
+    "skills": "./skills",
+    "cdpPort": 9333,
+    "timeoutMinutes": 15,
+    "workspacePattern": "agent"
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `agent.driver` | Driver name — matches a file in `drivers/` (currently `antigravity`) |
+| `agent.skills` | Path to a directory of skill markdown files, relative to project root |
+| `agent.cdpPort` | Chrome DevTools Protocol port the IDE is listening on |
+| `agent.timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
+| `agent.workspacePattern` | Substring to match against IDE window titles when selecting a target |
+
+Skills are markdown files in the skills directory. Each skill can specify a preferred model via YAML frontmatter (`model: opus-4.6`). When dispatching a card, you chain one or more skills — each runs in a fresh chat session.
 
 ## Creating Cards
 
