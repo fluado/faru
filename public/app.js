@@ -685,3 +685,282 @@ goalEl.addEventListener('keydown', (e) => {
     goalEl.blur();
   }
 });
+
+// --- Agent Dispatch ---
+
+let agentEnabled = false;
+let allSkills = [];
+let dispatchChain = [];
+let dispatchSlug = null;
+let dispatchPollTimer = null;
+
+// Load config and check if agent is enabled
+fetch('/api/config')
+  .then(r => r.json())
+  .then(cfg => {
+    agentEnabled = cfg.agentEnabled || false;
+    if (agentEnabled) {
+      fetch('/api/dispatch/skills')
+        .then(r => r.json())
+        .then(skills => { allSkills = skills; })
+        .catch(() => {});
+      startDispatchPolling();
+    }
+  })
+  .catch(() => {});
+
+function startDispatchPolling() {
+  if (dispatchPollTimer) return;
+  dispatchPollTimer = setInterval(pollDispatchStatus, 3000);
+  pollDispatchStatus();
+}
+
+let lastDispatchStatus = 'idle';
+
+async function pollDispatchStatus() {
+  if (!agentEnabled) return;
+  try {
+    const res = await fetch('/api/dispatch/status');
+    const s = await res.json();
+    lastDispatchStatus = s.status;
+    updateDispatchUI(s);
+  } catch (_) {}
+}
+
+function updateDispatchUI(s) {
+  const btn = document.getElementById('detail-dispatch');
+  if (!btn) return;
+
+  if (s.status === 'running') {
+    const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
+    btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})`;
+    btn.classList.add('dispatch-running');
+    btn.disabled = false;
+    btn.onclick = abortDispatch;
+  } else {
+    btn.textContent = '⚡ Dispatch to Agent';
+    btn.classList.remove('dispatch-running');
+    btn.disabled = false;
+    btn.onclick = null; // handled by setupDispatchModal
+  }
+}
+
+async function abortDispatch() {
+  if (!confirm('Abort the current dispatch?')) return;
+  try {
+    await fetch('/api/dispatch/abort', { method: 'POST' });
+    await fetchCards();
+    pollDispatchStatus();
+  } catch (_) {}
+}
+
+// Render dispatch chain in the modal
+function renderDispatchChain() {
+  const container = document.getElementById('dispatch-chain');
+  container.innerHTML = '';
+
+  dispatchChain.forEach((step, i) => {
+    const skill = allSkills.find(s => s.id === step.skill);
+    const name = skill ? skill.name : step.skill;
+
+    const el = document.createElement('div');
+    el.className = 'dispatch-skill-item';
+    el.draggable = true;
+    el.dataset.index = i;
+
+    el.innerHTML = `
+      <div class="dispatch-skill-header">
+        <span class="dispatch-skill-handle">≡</span>
+        <span class="dispatch-skill-index">${i + 1}.</span>
+        <span class="dispatch-skill-name">${escapeHtml(name)}</span>
+        <button class="dispatch-skill-remove" data-index="${i}">✕</button>
+      </div>
+      <textarea class="dispatch-skill-context" placeholder="Optional instructions for this skill…" rows="1" data-index="${i}">${escapeHtml(step.context || '')}</textarea>
+    `;
+
+    // Remove button
+    el.querySelector('.dispatch-skill-remove').addEventListener('click', (e) => {
+      e.stopPropagation();
+      dispatchChain.splice(i, 1);
+      renderDispatchChain();
+    });
+
+    // Context textarea sync
+    el.querySelector('.dispatch-skill-context').addEventListener('input', (e) => {
+      dispatchChain[i].context = e.target.value;
+    });
+
+    // Drag events for reordering
+    el.addEventListener('dragstart', (e) => {
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(i));
+    });
+
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+    });
+
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      const toIdx = i;
+      if (fromIdx === toIdx) return;
+      const [moved] = dispatchChain.splice(fromIdx, 1);
+      dispatchChain.splice(toIdx, 0, moved);
+      renderDispatchChain();
+    });
+
+    container.appendChild(el);
+  });
+
+  // Update start button
+  const startBtn = document.getElementById('dispatch-start');
+  startBtn.disabled = dispatchChain.length === 0;
+
+  // Update "add skill" dropdown — filter out skills already in chain
+  const select = document.getElementById('dispatch-skill-select');
+  const usedIds = new Set(dispatchChain.map(s => s.skill));
+  select.innerHTML = '<option value="">+ Add skill</option>';
+  for (const s of allSkills) {
+    if (!usedIds.has(s.id)) {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      select.appendChild(opt);
+    }
+  }
+}
+
+function setupDispatchModal() {
+  const overlay = document.getElementById('dispatch-overlay');
+  const closeBtn = document.getElementById('dispatch-close');
+  const cancelBtn = document.getElementById('dispatch-cancel');
+  const startBtn = document.getElementById('dispatch-start');
+  const skillSelect = document.getElementById('dispatch-skill-select');
+  const dispatchBtn = document.getElementById('detail-dispatch');
+
+  if (!overlay) return;
+
+  function closeDispatch() {
+    overlay.classList.remove('open');
+  }
+
+  closeBtn.addEventListener('click', closeDispatch);
+  cancelBtn.addEventListener('click', closeDispatch);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeDispatch();
+  });
+
+  // Add skill from dropdown
+  skillSelect.addEventListener('change', () => {
+    const id = skillSelect.value;
+    if (!id) return;
+    dispatchChain.push({ skill: id, context: '' });
+    skillSelect.value = '';
+    renderDispatchChain();
+  });
+
+  // Start dispatch
+  startBtn.addEventListener('click', async () => {
+    if (dispatchChain.length === 0 || !dispatchSlug) return;
+
+    startBtn.disabled = true;
+    startBtn.textContent = 'Starting…';
+
+    try {
+      await fetch(`/api/cards/${encodeURIComponent(dispatchSlug)}/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chain: dispatchChain }),
+      });
+      closeDispatch();
+      await fetchCards();
+      pollDispatchStatus();
+    } catch (e) {
+      startBtn.textContent = '▶ Start dispatch';
+      startBtn.disabled = false;
+      alert('Failed to start dispatch: ' + e.message);
+    }
+  });
+
+  // Dispatch button in card detail — opens the dispatch modal
+  dispatchBtn.addEventListener('click', async () => {
+    if (lastDispatchStatus === 'running') {
+      abortDispatch();
+      return;
+    }
+
+    if (!currentDetailSlug) return;
+    dispatchSlug = currentDetailSlug;
+
+    const card = cards.find(c => c.slug === dispatchSlug);
+    if (!card) return;
+
+    // Set title and context
+    document.getElementById('dispatch-title').textContent = `⚡ Dispatch: ${card.title}`;
+    const contextText = document.getElementById('dispatch-context-text');
+    contextText.textContent = card.goal || 'No description set.';
+
+    // Get suggested chain from server
+    try {
+      const res = await fetch('/api/dispatch/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: card.type, files: card.files || [] }),
+      });
+      dispatchChain = await res.json();
+    } catch (_) {
+      dispatchChain = [];
+    }
+
+    renderDispatchChain();
+
+    startBtn.textContent = '▶ Start dispatch';
+    startBtn.disabled = dispatchChain.length === 0;
+
+    document.getElementById('dispatch-overlay').classList.add('open');
+  });
+}
+
+// Show/hide dispatch button based on agent config
+function updateDispatchButton(card) {
+  const btn = document.getElementById('detail-dispatch');
+  if (!btn) return;
+  if (agentEnabled && card.status !== 'done') {
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+// Patch openDetail to call updateDispatchButton
+const _originalOpenDetail = openDetail;
+openDetail = function(card) {
+  _originalOpenDetail(card);
+  updateDispatchButton(card);
+};
+
+// Escape key closes dispatch modal too
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('dispatch-overlay')?.classList.remove('open');
+  }
+});
+
+// Card tile dispatch indicator — patch renderCard
+const _originalRenderCard = renderCard;
+renderCard = function(card) {
+  const el = _originalRenderCard(card);
+  if (lastDispatchStatus === 'running' && card.slug === (document.getElementById('detail-dispatch')?.dataset?.dispatchSlug)) {
+    // Add pulsing dot if this card is being dispatched
+  }
+  return el;
+};
+
+setupDispatchModal();
