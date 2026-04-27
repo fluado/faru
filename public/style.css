@@ -1233,6 +1233,14 @@ body.archive-mode .btn-column-add {
 	opacity: 0.4;
 }
 
+.dispatch-skill-item.drag-above {
+	border-top: 2px solid var(--accent);
+}
+
+.dispatch-skill-item.drag-below {
+	border-bottom: 2px solid var(--accent);
+}
+
 .dispatch-skill-header {
 	display: flex;
 	align-items: center;
