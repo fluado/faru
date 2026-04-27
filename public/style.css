@@ -339,30 +339,12 @@ body {
 }
 
 @keyframes unread-cycle {
-	0%, 100% {
-		background: #a78bfa;
-		box-shadow: 0 0 4px 2px rgba(167, 139, 250, 0.4);
-		transform: scale(1);
-	}
-	16% {
-		transform: scale(1.4);
-	}
-	33% {
-		background: #ef4444;
-		box-shadow: 0 0 4px 2px rgba(239, 68, 68, 0.4);
-		transform: scale(1);
-	}
-	50% {
-		transform: scale(1.4);
-	}
-	66% {
-		background: #3b82f6;
-		box-shadow: 0 0 4px 2px rgba(59, 130, 246, 0.4);
-		transform: scale(1);
-	}
-	83% {
-		transform: scale(1.4);
-	}
+	0%, 100% { background: #a78bfa; opacity: 1; }
+	12% { opacity: 0.3; }
+	33% { background: #ef4444; opacity: 1; }
+	45% { opacity: 0.3; }
+	66% { background: #3b82f6; opacity: 1; }
+	78% { opacity: 0.3; }
 }
 
 .card-title {
