@@ -346,22 +346,43 @@ async function triggerNewChat(port) {
 	for (const target of targets) {
 		try {
 			const client = await CDP({ target: target.webSocketDebuggerUrl });
-			const { Runtime } = client;
+			const { Input, Runtime } = client;
 			await Runtime.enable();
+
+			// Method 1: Try Cmd+E (Open Agent Manager → new conversation)
+			try {
+				await Input.dispatchKeyEvent({
+					type: "keyDown",
+					key: "e",
+					code: "KeyE",
+					windowsVirtualKeyCode: 69,
+					nativeVirtualKeyCode: 69,
+					modifiers: 4, // Meta (Cmd on Mac)
+				});
+				await Input.dispatchKeyEvent({
+					type: "keyUp",
+					key: "e",
+					code: "KeyE",
+					windowsVirtualKeyCode: 69,
+					nativeVirtualKeyCode: 69,
+					modifiers: 4,
+				});
+				await sleep(1500);
+			} catch (_) {}
+
+			// Method 2: Also try clicking any "New Chat" / "+" button as fallback
 			const res = await Runtime.evaluate({
 				expression: `
 (() => {
   const btn = document.querySelector('[aria-label*="New Chat" i], [title*="New Chat" i], [class*="new-chat"]');
-  if (btn) { btn.click(); return true; }
-  const allBtns = Array.from(document.querySelectorAll('button'));
-  const plusBtn = allBtns.find(b => b.innerText.includes('+') || (b.querySelector('svg') && b.innerHTML.includes('plus')));
-  if (plusBtn) { plusBtn.click(); return true; }
-  return false;
+  if (btn) { btn.click(); return "button"; }
+  return "keyboard";
 })()`,
 				returnByValue: true,
 			});
+
 			await client.close();
-			if (res.result?.value) return true;
+			return true;
 		} catch (_) {}
 	}
 	return false;
