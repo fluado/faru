@@ -4,24 +4,16 @@ let currentUser = '';
 let isArchiveView = false;
 
 // --- Unread tracking ---
-// A card is "unread" when the latest faru-agent comment is a dispatch-complete
-// message (🎉) and the user hasn't opened the card detail since.
+// A card is "unread" when it's still in wip and the latest faru-agent comment
+// is a dispatch-complete message (🎉). Clears naturally when you move the card
+// to done or add your own comment.
 function isCardUnread(card) {
+  if (card.status !== 'wip') return false;
   if (!card.comments || card.comments.length === 0) return false;
   const agentComments = card.comments.filter(c => c.author === 'faru-agent');
   if (agentComments.length === 0) return false;
   const latest = agentComments[agentComments.length - 1];
-  if (!latest.text.startsWith('🎉')) return false;
-  const seen = localStorage.getItem(`faru-seen:${card.slug}`);
-  if (!seen) return true;
-  // Compare against comment date (YYYY-MM-DD HH:MM format)
-  return latest.date > seen;
-}
-
-function markCardSeen(slug) {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10) + ' ' + now.toTimeString().slice(0, 5);
-  localStorage.setItem(`faru-seen:${slug}`, dateStr);
+  return latest.text.startsWith('🎉');
 }
 
 
