@@ -54,7 +54,17 @@ function listSkills(skillsDir) {
 			const raw = fs.readFileSync(path.join(skillsDir, f), "utf-8");
 			const { meta, body } = parseFrontmatter(raw);
 			const name = deriveSkillName(id, body);
-			return { id, name, model: meta.model || null };
+			return {
+				id,
+				name,
+				model: meta.model || null,
+				phase: meta.phase ? Number(meta.phase) : null,
+				produces: meta.produces || null,
+				excludeTypes: meta.excludeTypes
+					? meta.excludeTypes.split(",").map((s) => s.trim())
+					: [],
+				default: meta.default === "true",
+			};
 		})
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -77,45 +87,57 @@ function deriveSkillName(id, body) {
 }
 
 // ---------------------------------------------------------------------------
-// Default chain suggestion
+// Default chain suggestion — fully driven by skill frontmatter.
+//
+// Skills self-describe their chain behaviour:
+//   phase:        <number>  — ordering in the chain (lower = earlier)
+//   produces:     <glob>    — skip this skill if a card file matches the glob
+//   excludeTypes: <csv>     — skip for these card categories
+//   default:      true      — include as fallback when chain would be empty
 // ---------------------------------------------------------------------------
 
 function suggestChain(card, availableSkills) {
-	const chain = [];
-	const skillIds = new Set(availableSkills.map((s) => s.id));
 	const files = card.files || [];
 
-	const hasMilestones = files.some((f) => f.endsWith("-milestones.md"));
-	const hasDesign = files.some(
-		(f) => f.includes("-adr") || f.includes("-design"),
-	);
-	const hasTickets = files.some((f) => f.endsWith("-tickets.md"));
+	// Filter to skills that declare a phase (chainable skills)
+	const chainable = availableSkills.filter((s) => s.phase !== null);
 
-	if (!hasMilestones && skillIds.has("cpo-chief-product-architect")) {
-		chain.push({ skill: "cpo-chief-product-architect", context: "" });
-	}
-	if (!hasDesign && skillIds.has("chief-architect")) {
-		chain.push({ skill: "chief-architect", context: "" });
-	}
-	if (!hasTickets && skillIds.has("sprint-planner")) {
-		chain.push({ skill: "sprint-planner", context: "" });
-	}
+	const chain = chainable
+		.filter((skill) => {
+			// Skip if card type is excluded
+			if (skill.excludeTypes.length > 0 && skill.excludeTypes.includes(card.type)) {
+				return false;
+			}
+			// Skip if the artifact this skill produces already exists
+			if (skill.produces) {
+				const glob = skill.produces;
+				const hasArtifact = files.some((f) => matchGlob(f, glob));
+				if (hasArtifact) return false;
+			}
+			return true;
+		})
+		.sort((a, b) => a.phase - b.phase)
+		.map((s) => ({ skill: s.id, context: "" }));
 
-	// CSE last, unless card type is purely non-technical
-	const nonTechTypes = ["legal", "prospect", "ops"];
-	if (
-		!nonTechTypes.includes(card.type) &&
-		skillIds.has("cse-chief-software-engineer")
-	) {
-		chain.push({ skill: "cse-chief-software-engineer", context: "" });
-	}
-
-	// If nothing was suggested (everything already exists), default to CSE
-	if (chain.length === 0 && skillIds.has("cse-chief-software-engineer")) {
-		chain.push({ skill: "cse-chief-software-engineer", context: "" });
+	// If nothing was suggested, fall back to any skill marked as default
+	if (chain.length === 0) {
+		const fallback = availableSkills.find((s) => s.default);
+		if (fallback) {
+			chain.push({ skill: fallback.id, context: "" });
+		}
 	}
 
 	return chain;
+}
+
+// Minimal glob matcher — supports * and ** wildcards
+function matchGlob(filename, pattern) {
+	const regex = pattern
+		.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+		.replace(/\*\*/g, "<<GLOBSTAR>>")
+		.replace(/\*/g, "[^/]*")
+		.replace(/<<GLOBSTAR>>/g, ".*");
+	return new RegExp(`^${regex}$`).test(filename);
 }
 
 // ---------------------------------------------------------------------------
