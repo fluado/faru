@@ -323,12 +323,25 @@ body {
 	opacity: 0.35;
 }
 
-.card.unread {
-	border-left: 3px solid var(--accent);
+.card.unread .card-title {
+	display: flex;
+	align-items: center;
+	gap: 7px;
 }
 
-.card.unread .card-title {
-	font-weight: 700;
+.card.unread .card-title::before {
+	content: '';
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--accent);
+	flex-shrink: 0;
+	animation: unread-pulse 2s ease-in-out infinite;
+}
+
+@keyframes unread-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.35; }
 }
 
 .card-title {
