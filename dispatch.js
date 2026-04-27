@@ -102,7 +102,7 @@ function suggestChain(card, availableSkills) {
 // Prompt composition
 // ---------------------------------------------------------------------------
 
-function composePrompt(step, card, previousLog, skillsDir) {
+function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 	const parts = [];
 
 	// 1. Skill persona (the full .md file content)
@@ -155,6 +155,13 @@ function composePrompt(step, card, previousLog, skillsDir) {
 		parts.push("### Additional context from the user");
 		parts.push(step.context.trim());
 	}
+
+	// Sentinel: instruct agent to signal completion
+	parts.push("");
+	parts.push("### Completion signal");
+	parts.push(
+		`When you have fully completed your work, create a file at \`${sentinelPath}\` with content \`done\`. This signals the dispatch system that you are finished. Do this as your very last action.`,
+	);
 
 	return parts.join("\n");
 }
@@ -228,8 +235,13 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		}
 
 		// Compose and send
-		const prompt = composePrompt(step, card, state.log, fns.skillsDir);
-		const result = await driver.execute(prompt, agentConfig);
+		const sentinelPath = `backlog/${card.slug}/.dispatch-complete`;
+		const sentinelAbsPath = path.join(fns.backlogDir, card.slug, ".dispatch-complete");
+		// Clean up any stale sentinel
+		try { fs.unlinkSync(sentinelAbsPath); } catch (_) {}
+
+		const prompt = composePrompt(step, card, state.log, fns.skillsDir, sentinelPath);
+		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
 		const duration = formatDuration(Date.now() - skillStart);
 
 		state.log.push({
