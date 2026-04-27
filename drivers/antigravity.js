@@ -359,39 +359,24 @@ async function triggerNewChat(port) {
 	for (const target of targets) {
 		try {
 			const client = await CDP({ target: target.webSocketDebuggerUrl });
-			const { Input, Runtime } = client;
-			await Runtime.enable();
+			const { Input } = client;
 
-			// Method 1: Try Cmd+E (Open Agent Manager → new conversation)
-			try {
-				await Input.dispatchKeyEvent({
-					type: "keyDown",
-					key: "e",
-					code: "KeyE",
-					windowsVirtualKeyCode: 69,
-					nativeVirtualKeyCode: 69,
-					modifiers: 4, // Meta (Cmd on Mac)
-				});
-				await Input.dispatchKeyEvent({
-					type: "keyUp",
-					key: "e",
-					code: "KeyE",
-					windowsVirtualKeyCode: 69,
-					nativeVirtualKeyCode: 69,
-					modifiers: 4,
-				});
-				await sleep(1500);
-			} catch (_) {}
-
-			// Method 2: Also try clicking any "New Chat" / "+" button as fallback
-			const res = await Runtime.evaluate({
-				expression: `
-(() => {
-  const btn = document.querySelector('[aria-label*="New Chat" i], [title*="New Chat" i], [class*="new-chat"]');
-  if (btn) { btn.click(); return "button"; }
-  return "keyboard";
-})()`,
-				returnByValue: true,
+			// Cmd+Shift+L — new chat in Antigravity IDE
+			await Input.dispatchKeyEvent({
+				type: "keyDown",
+				key: "l",
+				code: "KeyL",
+				windowsVirtualKeyCode: 76,
+				nativeVirtualKeyCode: 76,
+				modifiers: 4 | 8, // Meta (4) + Shift (8)
+			});
+			await Input.dispatchKeyEvent({
+				type: "keyUp",
+				key: "l",
+				code: "KeyL",
+				windowsVirtualKeyCode: 76,
+				nativeVirtualKeyCode: 76,
+				modifiers: 4 | 8,
 			});
 
 			await client.close();
