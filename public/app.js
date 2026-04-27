@@ -620,7 +620,7 @@ fetchCards();
 // Fetch current git user for auto-assign
 fetch('/api/whoami').then(r => r.json()).then(d => { currentUser = d.user || ''; }).catch(() => {});
 
-// Fetch config and populate type selects
+// Fetch config and populate type selects + check agent dispatch
 fetch('/api/config')
   .then(r => r.json())
   .then(cfg => {
@@ -633,6 +633,15 @@ fetch('/api/config')
         opt.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
         sel.appendChild(opt);
       }
+    }
+    // Agent dispatch
+    agentEnabled = cfg.agentEnabled || false;
+    if (agentEnabled) {
+      fetch('/api/dispatch/skills')
+        .then(r => r.json())
+        .then(skills => { allSkills = skills; })
+        .catch(() => {});
+      startDispatchPolling();
     }
   })
   .catch(() => {});
@@ -693,21 +702,6 @@ let allSkills = [];
 let dispatchChain = [];
 let dispatchSlug = null;
 let dispatchPollTimer = null;
-
-// Load config and check if agent is enabled
-fetch('/api/config')
-  .then(r => r.json())
-  .then(cfg => {
-    agentEnabled = cfg.agentEnabled || false;
-    if (agentEnabled) {
-      fetch('/api/dispatch/skills')
-        .then(r => r.json())
-        .then(skills => { allSkills = skills; })
-        .catch(() => {});
-      startDispatchPolling();
-    }
-  })
-  .catch(() => {});
 
 function startDispatchPolling() {
   if (dispatchPollTimer) return;
@@ -952,15 +946,5 @@ document.addEventListener('keydown', (e) => {
     document.getElementById('dispatch-overlay')?.classList.remove('open');
   }
 });
-
-// Card tile dispatch indicator — patch renderCard
-const _originalRenderCard = renderCard;
-renderCard = function(card) {
-  const el = _originalRenderCard(card);
-  if (lastDispatchStatus === 'running' && card.slug === (document.getElementById('detail-dispatch')?.dataset?.dispatchSlug)) {
-    // Add pulsing dot if this card is being dispatched
-  }
-  return el;
-};
 
 setupDispatchModal();
