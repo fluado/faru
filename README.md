@@ -275,7 +275,6 @@ After each skill completes, faru can send a follow-up prompt in the same session
 ```json
 {
   "agent": {
-    "verify": true,
     "verify": "Review every acceptance criterion. Confirm each is done or fix it."
   }
 }
