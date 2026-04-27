@@ -29,6 +29,21 @@ function getState() {
 // Skill discovery (dynamic, reads from disk every call)
 // ---------------------------------------------------------------------------
 
+function parseFrontmatter(content) {
+	if (!content.startsWith("---")) return { meta: {}, body: content };
+	const end = content.indexOf("---", 3);
+	if (end === -1) return { meta: {}, body: content };
+	const yaml = content.substring(3, end).trim();
+	const meta = {};
+	for (const line of yaml.split("\n")) {
+		const idx = line.indexOf(":");
+		if (idx > 0) {
+			meta[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
+		}
+	}
+	return { meta, body: content.substring(end + 3).trim() };
+}
+
 function listSkills(skillsDir) {
 	if (!skillsDir || !fs.existsSync(skillsDir)) return [];
 	return fs
@@ -36,20 +51,25 @@ function listSkills(skillsDir) {
 		.filter((f) => f.endsWith(".md"))
 		.map((f) => {
 			const id = f.replace(".md", "");
-			const content = fs.readFileSync(path.join(skillsDir, f), "utf-8");
-			const name = deriveSkillName(id, content);
-			return { id, name };
+			const raw = fs.readFileSync(path.join(skillsDir, f), "utf-8");
+			const { meta, body } = parseFrontmatter(raw);
+			const name = deriveSkillName(id, body);
+			return { id, name, model: meta.model || null };
 		})
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function deriveSkillName(id, content) {
-	// Try to extract from "Act like a ..." on the first line
-	const firstLine = content.split("\n")[0] || "";
-	const match = firstLine.match(/^Act like (?:a |an )?(.+?)[\.\,]/i);
-	if (match) return match[1].trim();
+function getSkillModel(skillsDir, skillId) {
+	const fp = path.join(skillsDir, skillId + ".md");
+	if (!fs.existsSync(fp)) return null;
+	const { meta } = parseFrontmatter(fs.readFileSync(fp, "utf-8"));
+	return meta.model || null;
+}
 
-	// Fallback: humanize the filename
+function deriveSkillName(id, body) {
+	const firstLine = body.split("\n")[0] || "";
+	const match = firstLine.match(/^Act like (?:a |an )?(.+?)[.,]/i);
+	if (match) return match[1].trim();
 	return id
 		.split("-")
 		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
