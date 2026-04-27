@@ -106,12 +106,13 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 	const parts = [];
 
 	// 1. Skill persona — reference via @[path] so the IDE loads it as context
-	//    Derive IDE-relative path: repoFolderName/skills/skill-file.md
+	//    Use repoName/skills/filename — skillsDir may be absolute, so derive from basename
 	const skillFile = step.skill + ".md";
 	const skillPath = path.join(skillsDir, skillFile);
 	if (fs.existsSync(skillPath)) {
 		const repoName = path.basename(process.cwd());
-		const refPath = `${repoName}/${skillsDir.replace(/^\.\//, "")}/${skillFile}`;
+		const skillsDirName = path.basename(path.resolve(skillsDir));
+		const refPath = `${repoName}/${skillsDirName}/${skillFile}`;
 		parts.push(`Act as @[${refPath}].`);
 	}
 
@@ -134,9 +135,13 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 	}
 
 	if (card.body) {
-		parts.push("");
-		parts.push("### Card body");
-		parts.push(card.body);
+		// Strip comments section — those are dispatch operational logs, not task context
+		const body = card.body.replace(/## Comments[\s\S]*$/, "").trim();
+		if (body) {
+			parts.push("");
+			parts.push("### Card body");
+			parts.push(body);
+		}
 	}
 
 	// Previous phase outputs
