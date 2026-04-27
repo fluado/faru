@@ -502,6 +502,12 @@ module.exports = {
 	},
 
 	async abort(config) {
+		pinnedTarget = null;
 		return await stopAgent(config.cdpPort);
+	},
+
+	// Called by dispatch.js after chain completes (success or failure)
+	releaseWorkspace() {
+		pinnedTarget = null;
 	},
 };
