@@ -251,47 +251,41 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 
 		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
 
-		if (result.success) {
+		if (result.success && agentConfig.verify) {
 			// ---------------------------------------------------------------
 			// Verification pass — same session, second prompt.
-			// The agent can't ignore this: it's not in the skill instructions,
-			// it's a structural harness mechanism injected by dispatch.
+			// The agent can't opt out: this is a structural harness mechanism
+			// injected by the orchestrator, not part of any skill prompt.
+			// The prompt content is user-configured — dispatch is agnostic
+			// about what the verification checks for.
 			// ---------------------------------------------------------------
-			const verifyConfig = agentConfig.verify !== undefined ? agentConfig.verify : true;
-			if (verifyConfig) {
-				const verifySentinelPath = `backlog/${card.slug}/.dispatch-verify`;
-				const verifySentinelAbsPath = path.join(fns.backlogDir, card.slug, ".dispatch-verify");
-				try { fs.unlinkSync(verifySentinelAbsPath); } catch (_) {}
+			const verifySentinelPath = `backlog/${card.slug}/.dispatch-verify`;
+			const verifySentinelAbsPath = path.join(fns.backlogDir, card.slug, ".dispatch-verify");
+			try { fs.unlinkSync(verifySentinelAbsPath); } catch (_) {}
 
-				const verifyPrompt = typeof verifyConfig === "string"
-					? verifyConfig
-					: [
-						"Stop. Do not move on.",
-						"Audit every acceptance criterion and requirement from the task against what you actually produced.",
-						"For each criterion: state it, then confirm it is fully implemented with a file path, or flag it as incomplete.",
-						"Check for: missing edge cases, broken imports, files you created but never wired up, tests that don't actually assert anything meaningful, TODOs you left behind.",
-						"If you find anything incomplete or broken, fix it now.",
-						`When the audit is complete and all issues are resolved, create \`${verifySentinelPath}\` with content \`done\`.`,
-					].join(" ");
+			const basePrompt = typeof agentConfig.verify === "string"
+				? agentConfig.verify
+				: "Review what was requested and what you produced. List each requirement, confirm it is done or flag it as incomplete. Fix anything incomplete now.";
 
-				fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass for ${step.skill}`);
+			const verifyPrompt = `${basePrompt} When finished, create \`${verifySentinelPath}\` with content \`done\`.`;
 
-				const verifyResult = await driver.execute(
-					verifyPrompt,
-					agentConfig,
-					verifySentinelAbsPath,
+			fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass for ${step.skill}`);
+
+			const verifyResult = await driver.execute(
+				verifyPrompt,
+				agentConfig,
+				verifySentinelAbsPath,
+			);
+
+			if (!verifyResult.success) {
+				fns.log(`⚠️  [${i + 1}/${chain.length}] Verification timed out for ${step.skill} — proceeding`);
+				fns.addComment(
+					card.slug,
+					`⚠️ ${step.skill} verification pass timed out — results may be incomplete`,
+					"faru-agent",
 				);
-
-				if (!verifyResult.success) {
-					fns.log(`⚠️  [${i + 1}/${chain.length}] Verification timed out for ${step.skill} — proceeding`);
-					fns.addComment(
-						card.slug,
-						`⚠️ ${step.skill} verification pass timed out — results may be incomplete`,
-						"faru-agent",
-					);
-				} else {
-					fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass completed for ${step.skill}`);
-				}
+			} else {
+				fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass completed for ${step.skill}`);
 			}
 		}
 
