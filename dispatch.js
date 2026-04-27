@@ -239,6 +239,16 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		try { fs.unlinkSync(sentinelAbsPath); } catch (_) {}
 
 		const prompt = composePrompt(step, card, state.log, fns.skillsDir, sentinelPath);
+
+		// Select model for this skill (if driver supports it)
+		if (driver.setModel) {
+			const model = getSkillModel(fns.skillsDir, step.skill);
+			if (model) {
+				fns.log(`🧠 Selecting model: ${model} for ${step.skill}`);
+				await driver.setModel(agentConfig, model);
+			}
+		}
+
 		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
 		const duration = formatDuration(Date.now() - skillStart);
 
