@@ -340,7 +340,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		fns.notifyReload();
 	}
 
-	// Chain complete
+	// Chain complete — card stays in wip for human review.
 	const totalDuration = formatDuration(Date.now() - totalStart);
 	fns.addComment(
 		card.slug,
@@ -348,10 +348,6 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		"faru-agent",
 	);
 	fns.log(`🎉 Dispatch complete: ${card.slug} (${totalDuration})`);
-
-	try {
-		fns.updateCard(card.slug, { status: "done" });
-	} catch (_) {}
 
 	// Release workspace pin so next dispatch can pick a fresh target
 	if (driver.releaseWorkspace) driver.releaseWorkspace();
