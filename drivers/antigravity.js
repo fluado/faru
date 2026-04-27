@@ -16,6 +16,7 @@ const http = require("http");
 // ---------------------------------------------------------------------------
 
 let activeWorkspacePattern = null;
+let pinnedTarget = null; // locked to one workspace for the duration of a chain
 
 function httpGet(url) {
 	return new Promise((resolve, reject) => {
