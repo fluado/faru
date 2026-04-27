@@ -225,6 +225,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 				message: `Failed to start new session: ${e.message}`,
 			});
 			state.status = "error";
+			if (driver.releaseWorkspace) driver.releaseWorkspace();
 			fns.addComment(
 				card.slug,
 				`❌ ${step.skill} failed — could not start new session: ${e.message}`,
@@ -263,6 +264,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 				"faru-agent",
 			);
 			state.status = "error";
+			if (driver.releaseWorkspace) driver.releaseWorkspace();
 			fns.notifyReload();
 			return;
 		}
