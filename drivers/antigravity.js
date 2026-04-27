@@ -423,9 +423,6 @@ async function triggerNewChat(port) {
 	} catch (_) {}
 	return false;
 }
-	}
-	return false;
-}
 
 async function stopAgent(port) {
 	const targets = await resolveTargets(port);
