@@ -291,6 +291,56 @@ async function waitForIdle(port, timeoutMs) {
 	return false;
 }
 
+async function waitForCompletion(port, timeoutMs, sentinelPath) {
+	const fs = require("fs");
+	const start = Date.now();
+
+	// Give the agent a few seconds to start working before polling
+	await sleep(5000);
+
+	while (Date.now() - start < timeoutMs) {
+		// Primary: check for sentinel file
+		if (sentinelPath) {
+			try {
+				if (fs.existsSync(sentinelPath)) {
+					return true;
+				}
+			} catch (_) {}
+		}
+
+		// Fallback: check if agent is idle via UI
+		try {
+			const targets = await resolveTargets(port);
+			for (const target of targets) {
+				try {
+					const client = await CDP({ target: target.webSocketDebuggerUrl });
+					const { Runtime } = client;
+					await Runtime.enable();
+					const check = await Runtime.evaluate({
+						expression: IDLE_CHECK_EXPR,
+						returnByValue: true,
+					});
+					const val = check?.result?.value;
+					await client.close();
+
+					if (val && val.hasChat && val.isIdle && !val.isGenerating) {
+						// Double-check sentinel before trusting idle (agent may still be writing)
+						await sleep(2000);
+						if (sentinelPath) {
+							try {
+								if (fs.existsSync(sentinelPath)) return true;
+							} catch (_) {}
+						}
+					}
+				} catch (_) {}
+			}
+		} catch (_) {}
+
+		await sleep(3000);
+	}
+	return false;
+}
+
 async function triggerNewChat(port) {
 	const targets = await resolveTargets(port);
 	for (const target of targets) {
