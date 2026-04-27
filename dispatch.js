@@ -128,19 +128,10 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 
 	if (card.files && card.files.length > 0) {
 		parts.push("");
-		parts.push("### Existing files in this card folder");
+		parts.push("### Card files");
+		const repoName = path.basename(process.cwd());
 		for (const f of card.files) {
-			parts.push(`- ${f}`);
-		}
-	}
-
-	if (card.body) {
-		// Strip comments section — those are dispatch operational logs, not task context
-		const body = card.body.replace(/## Comments[\s\S]*$/, "").trim();
-		if (body) {
-			parts.push("");
-			parts.push("### Card body");
-			parts.push(body);
+			parts.push(`- @[${repoName}/backlog/${card.slug}/${f}]`);
 		}
 	}
 
