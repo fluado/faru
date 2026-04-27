@@ -415,6 +415,7 @@ body {
 
 .btn-primary:hover {
 	background: var(--accent-hover);
+	color: #fff;
 	box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
 	transform: translateY(-0.5px);
 }
