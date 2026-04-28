@@ -252,6 +252,7 @@ Skills are markdown files in the skills directory. Each skill can specify behavi
 model: opus-4.6
 phase: 2
 produces: *-design*.md
+needs: "*-milestones.md, *-adr*"
 excludeTypes: legal, ops
 default: true
 ---
@@ -264,6 +265,7 @@ Act like a ...
 | `model` | Preferred model for this skill (driver-specific identifier) |
 | `phase` | Ordering in the suggested chain — lower numbers run first. Skills without a `phase` are not included in auto-suggested chains |
 | `produces` | Glob pattern for the artifact this skill creates. If a card already contains a matching file, the skill is skipped |
+| `needs` | Comma-separated glob patterns for files this skill requires from the card folder. Only matching files are included in the prompt. If omitted, all card files are included (backward compatible). Previous skill output is handed off automatically via file-diff detection |
 | `excludeTypes` | Comma-separated card categories to skip (e.g. `legal, ops`) |
 | `default` | Set to `true` to mark this skill as the fallback when no other skills match |
 
