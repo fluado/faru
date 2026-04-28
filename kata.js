@@ -78,14 +78,17 @@ function scanSweeps(kataDir) {
 			const date = dateMatch ? dateMatch[1] : f.replace("-sweep.md", "");
 			const content = fs.readFileSync(path.join(sweepDir, f), "utf-8");
 
-			// Extract a one-line summary from the report
-			const summary = extractSummary(content);
+			// Read verdict/summary from sweep report frontmatter
+			const { meta: sweepMeta } = parseFrontmatter(content);
+			const verdict = sweepMeta.verdict || "completed";
+			const summary = sweepMeta.summary || verdict;
 
 			allSweeps.push({
 				kataId: kata.id,
 				kataTitle: kata.title,
 				date,
 				file: f,
+				verdict,
 				summary,
 				content,
 			});
@@ -95,23 +98,6 @@ function scanSweeps(kataDir) {
 	// Sort all sweeps by date descending
 	allSweeps.sort((a, b) => b.date.localeCompare(a.date));
 	return allSweeps;
-}
-
-function extractSummary(content) {
-	// Try to find "Fixed" or "Could Not Fix" sections
-	const fixedMatch = content.match(/## Fixed \((\d+)\)/);
-	const cantFixMatch = content.match(/## Could Not Fix \((\d+)\)/);
-	const fixed = fixedMatch ? parseInt(fixedMatch[1], 10) : 0;
-	const cantFix = cantFixMatch ? parseInt(cantFixMatch[1], 10) : 0;
-
-	if (fixed > 0 && cantFix > 0) return `fixed ${fixed}, ${cantFix} finding${cantFix > 1 ? "s" : ""}`;
-	if (fixed > 0) return `fixed ${fixed}`;
-	if (cantFix > 0) return `${cantFix} finding${cantFix > 1 ? "s" : ""}`;
-
-	// Check if "healthy" appears
-	if (/healthy/i.test(content) || /all.*pass/i.test(content)) return "healthy";
-
-	return "completed";
 }
 
 // ---------------------------------------------------------------------------
@@ -265,6 +251,33 @@ function stopScheduler() {
 }
 
 // ---------------------------------------------------------------------------
+// File watcher — auto-reload cron jobs when kata files change
+// ---------------------------------------------------------------------------
+
+let watcher = null;
+let reloadTimeout = null;
+
+function watchKataDir(kataDir, driver, agentConfig, fns) {
+	if (watcher) watcher.close();
+
+	try {
+		watcher = fs.watch(kataDir, (eventType, filename) => {
+			if (!filename || !filename.endsWith(".md")) return;
+			// Debounce — multiple events fire for a single save
+			if (reloadTimeout) clearTimeout(reloadTimeout);
+			reloadTimeout = setTimeout(() => {
+				fns.log(`🔄 Kata file changed: ${filename} — reloading scheduler`);
+				const count = startScheduler(kataDir, driver, agentConfig, fns);
+				fns.log(`📅 Scheduler reloaded — ${count} kata scheduled`);
+			}, 500);
+		});
+		fns.log(`👁  Watching kata directory for changes`);
+	} catch (e) {
+		fns.log(`⚠  Could not watch kata directory: ${e.message}`);
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -275,4 +288,5 @@ module.exports = {
 	getKataState,
 	startScheduler,
 	stopScheduler,
+	watchKataDir,
 };
