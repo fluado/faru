@@ -140,6 +140,29 @@ function matchGlob(filename, pattern) {
 	return new RegExp(`^${regex}$`).test(filename);
 }
 
+function scanCardFiles(slug, backlogDir) {
+	const folderPath = path.join(backlogDir, slug);
+	if (!fs.existsSync(folderPath)) return [];
+	return fs.readdirSync(folderPath).filter((f) => f.endsWith(".md"));
+}
+
+function getSkillNeeds(skillsDir, skillId) {
+	const fp = path.join(skillsDir, skillId + ".md");
+	if (!fs.existsSync(fp)) return null;
+	const { meta } = parseFrontmatter(fs.readFileSync(fp, "utf-8"));
+	return meta.needs || null;
+}
+
+function resolveNeeds(skillId, skillsDir, cardFiles) {
+	const needs = getSkillNeeds(skillsDir, skillId);
+	if (!needs) return cardFiles;
+	const patterns = needs.split(",").map((p) => p.trim());
+	const matched = cardFiles.filter((f) =>
+		patterns.some((p) => matchGlob(f, p)),
+	);
+	return matched.length > 0 ? matched : cardFiles;
+}
+
 // ---------------------------------------------------------------------------
 // Prompt composition
 // ---------------------------------------------------------------------------
@@ -156,20 +179,27 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 		parts.push(`Act as @[${repoName}/${skillsDirName}/${skillFile}].`);
 	}
 
-	// Card files — the IDE loads these as context
-	if (card.files && card.files.length > 0) {
-		const refs = card.files
+	// Card files — scoped by skill's `needs` declaration
+	const neededFiles = resolveNeeds(step.skill, skillsDir, card.files || []);
+	if (neededFiles.length > 0) {
+		const refs = neededFiles
 			.map((f) => `@[${repoName}/backlog/${card.slug}/${f}]`)
 			.join(" ");
 		parts.push(`Read ${refs}.`);
 	}
 
-	// Previous phase outputs
+	// Previous phase output — explicit handoff of new files only
 	const completedSteps = previousLog.filter((l) => l.status === "done");
 	if (completedSteps.length > 0) {
-		parts.push(
-			`Previous skills completed: ${completedSteps.map((l) => l.skill).join(", ")}. Their outputs are in the card folder.`,
-		);
+		const lastStep = completedSteps[completedSteps.length - 1];
+		const produced = lastStep.producedFiles || [];
+		const handoff = produced.filter((f) => !neededFiles.includes(f));
+		if (handoff.length > 0) {
+			const refs = handoff
+				.map((f) => `@[${repoName}/backlog/${card.slug}/${f}]`)
+				.join(" ");
+			parts.push(`The previous skill (${lastStep.skill}) produced: ${refs}.`);
+		}
 	}
 
 	// User-provided per-skill context
@@ -228,6 +258,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		state.currentIndex = i;
 		const step = chain[i];
 		const skillStart = Date.now();
+		const filesBefore = scanCardFiles(card.slug, fns.backlogDir);
 
 		fns.log(`⚡ [${i + 1}/${chain.length}] Running: ${step.skill}`);
 
@@ -280,23 +311,19 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			// injected by the orchestrator, not part of any skill prompt.
 			// The prompt content is user-configured — dispatch is agnostic
 			// about what the verification checks for.
+			// No sentinel — relies on idle detection so the agent focuses
+			// entirely on the audit without sentinel-creation friction.
 			// ---------------------------------------------------------------
-			const verifySentinelPath = `backlog/${card.slug}/.dispatch-verify`;
-			const verifySentinelAbsPath = path.join(fns.backlogDir, card.slug, ".dispatch-verify");
-			try { fs.unlinkSync(verifySentinelAbsPath); } catch (_) {}
-
 			const basePrompt = typeof agentConfig.verify === "string"
 				? agentConfig.verify
 				: "Review what was requested and what you produced. List each requirement, confirm it is done or flag it as incomplete. Fix anything incomplete now.";
 
-			const verifyPrompt = `${basePrompt} When finished, create \`${verifySentinelPath}\` with content \`done\`.`;
-
 			fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass for ${step.skill}`);
 
 			const verifyResult = await driver.execute(
-				verifyPrompt,
+				basePrompt,
 				agentConfig,
-				verifySentinelAbsPath,
+				null,
 			);
 
 			if (!verifyResult.success) {
@@ -313,12 +340,16 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 
 		const duration = formatDuration(Date.now() - skillStart);
 
+		const filesAfter = scanCardFiles(card.slug, fns.backlogDir);
+		const producedFiles = filesAfter.filter((f) => !filesBefore.includes(f));
+
 		state.log.push({
 			skill: step.skill,
 			status: result.success ? "done" : "failed",
 			duration: Date.now() - skillStart,
 			durationFormatted: duration,
 			message: result.success ? "" : result.output,
+			producedFiles,
 		});
 
 		if (result.success) {
