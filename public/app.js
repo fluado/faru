@@ -1170,6 +1170,63 @@ document.getElementById('sweep-detail-overlay')?.addEventListener('click', (e) =
   }
 });
 
+// --- Sweep Selection → Promote to Card ---
+
+let promoteTooltip = null;
+
+function createPromoteTooltip() {
+  if (promoteTooltip) return promoteTooltip;
+  const el = document.createElement('div');
+  el.className = 'promote-tooltip';
+  el.innerHTML = '<button class="promote-tooltip-btn">📋 Promote to card</button>';
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  promoteTooltip = el;
+
+  el.querySelector('.promote-tooltip-btn').addEventListener('click', () => {
+    const sel = window.getSelection();
+    const text = sel.toString().trim();
+    if (!text) return;
+
+    // Pre-fill the new card modal with the selected text
+    const overlay = document.getElementById('modal-overlay');
+    const descField = overlay?.querySelector('textarea[name="description"]');
+    if (descField) descField.value = text;
+    overlay?.classList.add('open');
+
+    // Clear selection and hide tooltip
+    sel.removeAllRanges();
+    promoteTooltip.style.display = 'none';
+  });
+
+  return el;
+}
+
+document.getElementById('sweep-detail-content')?.addEventListener('mouseup', () => {
+  const sel = window.getSelection();
+  const text = sel.toString().trim();
+  const tooltip = createPromoteTooltip();
+
+  if (!text || text.length < 10) {
+    tooltip.style.display = 'none';
+    return;
+  }
+
+  // Position tooltip near selection
+  const range = sel.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  tooltip.style.display = '';
+  tooltip.style.top = `${rect.top + window.scrollY - 36}px`;
+  tooltip.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
+});
+
+// Hide tooltip on click elsewhere
+document.addEventListener('mousedown', (e) => {
+  if (promoteTooltip && !promoteTooltip.contains(e.target)) {
+    promoteTooltip.style.display = 'none';
+  }
+});
+
 document.getElementById('sweep-detail-open')?.addEventListener('click', () => {
   if (currentSweepKataId && currentSweepFile) {
     fetch('/api/open', {
