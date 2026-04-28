@@ -1102,10 +1102,10 @@ function renderDojoTimeline(sweeps) {
     html += `<div class="dojo-date-label">${escapeHtml(label)}</div>`;
 
     for (const s of items) {
-      const dotClass = s.summary.includes('finding') ? 'findings'
-        : s.summary.includes('fail') ? 'failed'
-        : s.summary.includes('fixed') ? 'completed'
-        : 'healthy';
+      const dotClass = s.verdict === 'needs-attention' ? 'findings'
+        : s.verdict === 'critical' ? 'failed'
+        : s.verdict === 'healthy' ? 'healthy'
+        : 'completed';
 
       html += `
         <div class="dojo-sweep" data-kata-id="${escapeHtml(s.kataId)}" data-sweep-file="${escapeHtml(s.file)}">

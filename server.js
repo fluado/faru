@@ -927,6 +927,7 @@ const server = http.createServer(async (req, res) => {
 			kataTitle: s.kataTitle,
 			date: s.date,
 			file: s.file,
+			verdict: s.verdict,
 			summary: s.summary,
 		}));
 		res.writeHead(200, { "Content-Type": "application/json" });
@@ -1355,5 +1356,6 @@ server.listen(PORT, () => {
 	if (kataDir && agentDriver && agentConfig) {
 		const count = kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
 		log(`🥋 Dojo scheduler started — ${count} kata scheduled`);
+		kata.watchKataDir(kataDir, agentDriver, agentConfig, kataFns);
 	}
 });
