@@ -312,22 +312,23 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			// The prompt content is user-configured — dispatch is agnostic
 			// about what the verification checks for.
 			//
-			// Completion: idle detection (no sentinel). Sentinel-based
-			// completion is unreliable here — agents focus on the audit and
-			// skip the file-creation instruction. Idle detection (3 polls,
-			// ~9s of inactivity) is appropriate because the verify pass is
-			// a bounded review, not an open-ended implementation task.
+			// Reuses the same .dispatch-complete sentinel as the main step.
+			// The agent just created this file (proving it knows how), and
+			// the driver deleted it after the main step succeeded, so the
+			// path is clean for re-polling.
 			// ---------------------------------------------------------------
 			const basePrompt = typeof agentConfig.verify === "string"
 				? agentConfig.verify
 				: "Review what was requested and what you produced. List each requirement, confirm it is done or flag it as incomplete. Fix anything incomplete now.";
 
+			const verifyPrompt = `${basePrompt} When finished, create \`${sentinelPath}\` with content \`done\`.`;
+
 			fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass for ${step.skill}`);
 
 			const verifyResult = await driver.execute(
-				basePrompt,
+				verifyPrompt,
 				agentConfig,
-				null,
+				sentinelAbsPath,
 			);
 
 			if (!verifyResult.success) {
