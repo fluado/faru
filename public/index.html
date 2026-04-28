@@ -13,6 +13,7 @@
       <h1 class="logo"><img src="favicon.svg" class="logo-icon" alt=""><span class="logo-accent">faru</span></h1>
     </div>
     <div class="header-right">
+      <button id="btn-toggle-dojo" class="btn-ghost" style="display:none">Dojo</button>
       <button id="btn-toggle-archive" class="btn-ghost">Archive</button>
     </div>
   </header>
@@ -51,6 +52,67 @@
       <div class="card-list" id="list-done"></div>
     </div>
   </main>
+
+  <!-- Dojo View (hidden by default) -->
+  <div class="dojo-view" id="dojo-view" style="display:none">
+    <div class="dojo-header">
+      <h2 class="dojo-title">Dojo</h2>
+      <div class="dojo-header-actions">
+        <button class="btn-ghost" id="btn-manage-kata">⚙ Manage Kata</button>
+      </div>
+    </div>
+    <div class="dojo-timeline" id="dojo-timeline">
+      <div class="dojo-empty">No sweeps yet. Create a kata to get started.</div>
+    </div>
+  </div>
+
+  <!-- Manage Kata Modal -->
+  <div class="modal-overlay" id="kata-manage-overlay">
+    <div class="modal modal-kata-manage">
+      <div class="modal-header">
+        <h3>Manage Kata</h3>
+        <button class="modal-close" id="kata-manage-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="kata-list" id="kata-list"></div>
+      <div class="kata-new-form">
+        <h4 class="kata-form-title">New Kata</h4>
+        <form id="new-kata-form" class="modal-form">
+          <label>
+            Name
+            <input type="text" name="name" required placeholder="e.g. gardener-sweep">
+          </label>
+          <label>
+            Schedule
+            <input type="text" name="schedule" required placeholder="e.g. 0 2 * * 1">
+            <span class="kata-schedule-hint">0 2 * * 1 (Mon 2am) · 0 3 * * * (daily 3am) · 0 */6 * * * (every 6h)</span>
+          </label>
+          <label>
+            Prompt
+            <textarea name="prompt" rows="5" required placeholder="Act as @[docs/skills/software-gardener.md]. Run a full sweep of backend..."></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary btn-full">Create</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sweep Detail Modal -->
+  <div class="modal-overlay" id="sweep-detail-overlay">
+    <div class="modal modal-sweep-detail">
+      <div class="modal-header">
+        <h3 id="sweep-detail-title"></h3>
+        <button class="modal-close" id="sweep-detail-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="sweep-detail-content" id="sweep-detail-content"></div>
+      <div class="sweep-detail-actions">
+        <button class="btn" id="sweep-detail-open">📝 Open in Editor</button>
+      </div>
+    </div>
+  </div>
 
   <!-- New Card Modal -->
   <div class="modal-overlay" id="modal-overlay">
