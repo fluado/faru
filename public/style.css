@@ -1427,3 +1427,270 @@ body.archive-mode .btn-column-add {
 	background: var(--text-faint);
 	animation: dispatchPulse 1s ease-in-out infinite;
 }
+
+/* === Dojo === */
+
+.dojo-view {
+	padding: 24px 28px;
+	max-width: 720px;
+	margin: 0 auto;
+	min-height: calc(100vh - 95px);
+}
+
+.dojo-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 24px;
+}
+
+.dojo-title {
+	font-size: 1.05rem;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: var(--text);
+}
+
+.dojo-header-actions {
+	display: flex;
+	gap: 8px;
+}
+
+/* Dojo mode — hide board, show dojo */
+body.dojo-mode .board {
+	display: none;
+}
+
+body.dojo-mode .goal-banner {
+	display: none;
+}
+
+/* Timeline */
+.dojo-timeline {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.dojo-empty {
+	text-align: center;
+	color: var(--text-faint);
+	font-size: 0.875rem;
+	padding: 60px 20px;
+}
+
+.dojo-date-group {
+	margin-bottom: 16px;
+}
+
+.dojo-date-label {
+	font-size: 0.6875rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-faint);
+	margin-bottom: 8px;
+	padding-left: 2px;
+}
+
+.dojo-sweep {
+	background: var(--surface);
+	border: none;
+	border-radius: var(--radius);
+	padding: 12px 16px;
+	margin-bottom: 6px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	cursor: pointer;
+	box-shadow: var(--shadow-card);
+	transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.dojo-sweep:hover {
+	box-shadow: var(--shadow-card-hover);
+	transform: translateY(-1px);
+}
+
+.dojo-sweep-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.dojo-sweep-dot.healthy {
+	background: var(--green);
+}
+
+.dojo-sweep-dot.findings {
+	background: var(--amber);
+}
+
+.dojo-sweep-dot.failed {
+	background: var(--red);
+}
+
+.dojo-sweep-dot.completed {
+	background: var(--green);
+}
+
+.dojo-sweep-name {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text);
+	flex: 1;
+}
+
+.dojo-sweep-summary {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+.dojo-sweep-time {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+}
+
+/* Manage Kata Modal */
+.modal-kata-manage {
+	max-width: 520px;
+	padding: 24px;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.kata-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 20px;
+}
+
+.kata-list:empty {
+	display: none;
+}
+
+.kata-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px;
+	background: var(--bg);
+	border-radius: 8px;
+	border: 1px solid var(--border-subtle);
+}
+
+.kata-item-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.kata-item-name {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.kata-item-schedule {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+}
+
+.kata-item-badge {
+	font-size: 0.6rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 2px 7px;
+	border-radius: 5px;
+}
+
+.kata-item-badge.active {
+	background: var(--green-bg);
+	color: var(--green-text);
+}
+
+.kata-item-badge.paused {
+	background: var(--bg);
+	color: var(--text-faint);
+}
+
+.kata-item-actions {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.kata-item-btn {
+	font-family: var(--font);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	color: var(--accent-text);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+	transition: all var(--transition);
+}
+
+.kata-item-btn:hover {
+	background: var(--accent-muted);
+}
+
+.kata-item-btn.run-now {
+	color: var(--green-text);
+}
+
+.kata-item-btn.run-now:hover {
+	background: var(--green-bg);
+}
+
+.kata-form-title {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text);
+	margin-bottom: 12px;
+	padding-top: 16px;
+	border-top: 1px solid var(--border);
+}
+
+.kata-schedule-hint {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	margin-top: 2px;
+}
+
+/* Sweep detail modal */
+.modal-sweep-detail {
+	max-width: 600px;
+	padding: 24px;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.sweep-detail-content {
+	font-size: 0.8125rem;
+	line-height: 1.7;
+	color: var(--text);
+	white-space: pre-wrap;
+	font-family: var(--font-mono);
+	background: var(--bg);
+	border-radius: 8px;
+	padding: 16px;
+	margin-bottom: 16px;
+	max-height: 50vh;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+}
+
+.sweep-detail-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
