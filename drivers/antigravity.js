@@ -364,8 +364,6 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 									try {
 										if (fs.existsSync(sentinelPath)) return true;
 									} catch (_) {}
-									// Fallback: agent went idle without creating sentinel
-									return true;
 								} else {
 									return true;
 								}
