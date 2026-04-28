@@ -1143,19 +1143,12 @@ async function openSweepDetail(kataId, file) {
   const title = document.getElementById('sweep-detail-title');
   const content = document.getElementById('sweep-detail-content');
 
-  title.textContent = `${kataId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} — ${file.replace('-sweep.md', '')}`;
+  title.textContent = '';
 
   try {
     const res = await fetch(`/api/dojo/sweeps/${encodeURIComponent(kataId)}/${encodeURIComponent(file)}`);
     const data = await res.json();
-    let md = data.content || 'No content.';
-
-    // Strip the first H1 — it duplicates the modal title
-    const h1Match = md.match(/^#\s+(.+)\n*/);
-    if (h1Match) {
-      title.textContent = h1Match[1];
-      md = md.slice(h1Match[0].length);
-    }
+    const md = data.content || 'No content.';
 
     content.innerHTML = typeof marked !== 'undefined'
       ? marked.parse(md)
