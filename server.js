@@ -915,6 +915,42 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
+	if (url.pathname.match(/^\/api\/dojo\/kata\/[^/]+\/mute$/) && req.method === "POST") {
+		if (!kataDir) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Dojo not configured" }));
+			return;
+		}
+		try {
+			const body = await readBody(req);
+			const kataId = decodeURIComponent(url.pathname.split("/")[4]);
+			const text = (body.text || "").trim();
+			if (!text) {
+				res.writeHead(400, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "text is required" }));
+				return;
+			}
+			const sweepDir = path.join(kataDir, kataId);
+			if (!fs.existsSync(sweepDir)) {
+				fs.mkdirSync(sweepDir, { recursive: true });
+			}
+			const mutedPath = path.join(sweepDir, "muted.md");
+			const bullet = `- ${text.split("\n").join(" ").substring(0, 200)}\n`;
+			if (fs.existsSync(mutedPath)) {
+				fs.appendFileSync(mutedPath, bullet, "utf-8");
+			} else {
+				fs.writeFileSync(mutedPath, `# Muted Findings\n\n${bullet}`, "utf-8");
+			}
+			log(`🔇 Muted finding for ${kataId}`);
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ muted: true }));
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
 	if (url.pathname === "/api/dojo/sweeps" && req.method === "GET") {
 		if (!kataDir) {
 			res.writeHead(200, { "Content-Type": "application/json" });

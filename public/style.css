@@ -1800,6 +1800,8 @@ body.dojo-mode .goal-banner {
 	transform: translateX(-50%);
 	pointer-events: auto;
 	animation: promoteIn 0.12s ease-out;
+	display: flex;
+	gap: 4px;
 }
 
 @keyframes promoteIn {
@@ -1815,7 +1817,7 @@ body.dojo-mode .goal-banner {
 	background: var(--accent);
 	border: none;
 	border-radius: 6px;
-	padding: 5px 12px;
+	padding: 5px 10px;
 	cursor: pointer;
 	white-space: nowrap;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -1824,4 +1826,12 @@ body.dojo-mode .goal-banner {
 
 .promote-tooltip-btn:hover {
 	background: var(--accent-hover);
+}
+
+.promote-tooltip-btn.promote-mute {
+	background: var(--text-muted);
+}
+
+.promote-tooltip-btn.promote-mute:hover {
+	background: var(--text);
 }
