@@ -8,6 +8,7 @@
 	"license": "MIT",
 	"repository": "fluado/faru",
 	"dependencies": {
-		"chrome-remote-interface": "0.34.0"
+		"chrome-remote-interface": "0.34.0",
+		"node-cron": "^4.2.1"
 	}
 }
