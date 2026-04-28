@@ -1751,6 +1751,42 @@ body.dojo-mode .goal-banner {
 	margin: 8px 0;
 }
 
+.sweep-detail-content table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.75rem;
+	margin: 12px 0;
+	display: block;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+
+.sweep-detail-content thead th {
+	text-align: left;
+	font-weight: 600;
+	color: var(--text);
+	padding: 6px 10px;
+	border-bottom: 2px solid var(--border);
+	white-space: nowrap;
+	background: var(--surface);
+}
+
+.sweep-detail-content tbody td {
+	padding: 5px 10px;
+	border-bottom: 1px solid var(--border-subtle);
+	vertical-align: top;
+}
+
+.sweep-detail-content tbody tr:hover {
+	background: var(--surface);
+}
+
+.sweep-detail-content hr {
+	border: none;
+	border-top: 1px solid var(--border);
+	margin: 16px 0;
+}
+
 .sweep-detail-actions {
 	display: flex;
 	justify-content: flex-end;
