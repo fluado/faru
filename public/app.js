@@ -1148,7 +1148,9 @@ async function openSweepDetail(kataId, file) {
   try {
     const res = await fetch(`/api/dojo/sweeps/${encodeURIComponent(kataId)}/${encodeURIComponent(file)}`);
     const data = await res.json();
-    content.textContent = data.content || 'No content.';
+    content.innerHTML = typeof marked !== 'undefined'
+      ? marked.parse(data.content || 'No content.')
+      : escapeHtml(data.content || 'No content.');
   } catch (_) {
     content.textContent = 'Failed to load sweep report.';
   }
