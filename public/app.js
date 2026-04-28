@@ -656,6 +656,12 @@ fetch('/api/config')
         .catch(() => {});
       startDispatchPolling();
     }
+    // Dojo tab
+    dojoEnabled = cfg.dojoEnabled || false;
+    if (dojoEnabled) {
+      const dojoBtn = document.getElementById('btn-toggle-dojo');
+      if (dojoBtn) dojoBtn.style.display = '';
+    }
   })
   .catch(() => {});
 

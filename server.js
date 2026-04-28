@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFile, execFileSync } = require("child_process");
 const dispatch = require("./dispatch");
+const kata = require("./kata");
 
 const DOCS_ROOT = process.cwd();
 
@@ -53,6 +54,19 @@ if (agentConfig) {
 		console.error(`⚠  Failed to load agent driver "${agentConfig.driver}": ${e.message}`);
 		console.error(`   Dispatch feature will be disabled.`);
 	}
+}
+
+// --- Dojo (kata scheduler, optional) ---
+const schedulerConfig = config.scheduler || null;
+let kataDir = null;
+
+if (schedulerConfig && schedulerConfig.kataDir) {
+	kataDir = path.resolve(DOCS_ROOT, schedulerConfig.kataDir);
+	if (!fs.existsSync(kataDir)) {
+		fs.mkdirSync(kataDir, { recursive: true });
+		log(`📁 Created kata directory: ${schedulerConfig.kataDir}`);
+	}
+	log(`🥋 Dojo enabled — kata dir: ${schedulerConfig.kataDir}`);
 }
 
 function resolveGitUser() {
@@ -556,6 +570,7 @@ const server = http.createServer(async (req, res) => {
 				cardCategories: config.cardCategories,
 				port: config.port,
 				agentEnabled: !!(agentConfig && agentDriver),
+				dojoEnabled: !!kataDir,
 			}),
 		);
 		return;
@@ -786,7 +801,12 @@ const server = http.createServer(async (req, res) => {
 			const linkedPath = body.linkedPath;
 
 			let target;
-			if (linkedPath) {
+			if (body.kataFile && kataDir) {
+				// Kata file — relative to kataDir
+				target = path.resolve(kataDir, body.kataFile);
+				if (!target.startsWith(kataDir)) throw new Error("Path outside kata dir");
+				if (!fs.existsSync(target)) throw new Error("Kata file not found");
+			} else if (linkedPath) {
 				// Linked files are relative to DOCS_ROOT
 				target = path.resolve(DOCS_ROOT, linkedPath);
 				if (!target.startsWith(DOCS_ROOT)) throw new Error("Path outside root");
@@ -816,6 +836,122 @@ const server = http.createServer(async (req, res) => {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: e.message }));
 		}
+		return;
+	}
+
+	// --- Dojo Routes ---
+
+	if (url.pathname === "/api/dojo/kata" && req.method === "GET") {
+		if (!kataDir) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end("[]");
+			return;
+		}
+		const kataList = kata.scanKata(kataDir);
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify(kataList));
+		return;
+	}
+
+	if (url.pathname === "/api/dojo/kata" && req.method === "POST") {
+		if (!kataDir) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Dojo not configured" }));
+			return;
+		}
+		try {
+			const body = await readBody(req);
+			const name = body.name;
+			const schedule = body.schedule;
+			const prompt = body.prompt;
+			if (!name || !schedule || !prompt) {
+				res.writeHead(400, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "name, schedule, and prompt are required" }));
+				return;
+			}
+			const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+			const filePath = path.join(kataDir, `${slug}.md`);
+			if (fs.existsSync(filePath)) {
+				res.writeHead(409, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Kata already exists" }));
+				return;
+			}
+			const content = `---\nschedule: ${schedule}\n---\n\n${prompt}\n`;
+			fs.writeFileSync(filePath, content, "utf-8");
+			log(`🥋 Kata created: ${slug}`);
+			// Restart scheduler to pick up new kata
+			if (agentDriver && agentConfig) {
+				kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
+			}
+			res.writeHead(201, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ created: true, id: slug }));
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
+	if (url.pathname.match(/^\/api\/dojo\/kata\/[^/]+\/run$/) && req.method === "POST") {
+		if (!kataDir || !agentDriver || !agentConfig) {
+			res.writeHead(400, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Dojo or agent not configured" }));
+			return;
+		}
+		const kataId = decodeURIComponent(url.pathname.split("/")[4]);
+		const kataList = kata.scanKata(kataDir);
+		const k = kataList.find((x) => x.id === kataId);
+		if (!k) {
+			res.writeHead(404, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Kata not found" }));
+			return;
+		}
+		res.writeHead(202, { "Content-Type": "application/json" });
+		res.end(JSON.stringify({ running: true, kataId }));
+		// Fire and forget
+		kata.runKata(k, kataDir, agentDriver, agentConfig, kataFns).catch((e) => {
+			log(`❌ Kata run failed: ${e.message}`);
+		});
+		return;
+	}
+
+	if (url.pathname === "/api/dojo/sweeps" && req.method === "GET") {
+		if (!kataDir) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end("[]");
+			return;
+		}
+		// Return sweeps without content (just metadata for timeline)
+		const sweeps = kata.scanSweeps(kataDir).map((s) => ({
+			kataId: s.kataId,
+			kataTitle: s.kataTitle,
+			date: s.date,
+			file: s.file,
+			summary: s.summary,
+		}));
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify(sweeps));
+		return;
+	}
+
+	if (url.pathname.match(/^\/api\/dojo\/sweeps\/[^/]+\/[^/]+$/) && req.method === "GET") {
+		if (!kataDir) {
+			res.writeHead(404, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Dojo not configured" }));
+			return;
+		}
+		const parts = url.pathname.split("/");
+		const kataId = decodeURIComponent(parts[4]);
+		const sweepFile = decodeURIComponent(parts[5]);
+		const filePath = path.join(kataDir, kataId, sweepFile);
+		if (!fs.existsSync(filePath)) {
+			res.writeHead(404, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Sweep not found" }));
+			return;
+		}
+		const content = fs.readFileSync(filePath, "utf-8");
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify({ content }));
 		return;
 	}
 
@@ -1189,6 +1325,15 @@ const syncLabel = config.autoSync ? 'ON' : 'OFF';
 const archiveLabel = config.archiveDoneAfterDays
 	? `${config.archiveDoneAfterDays}d`
 	: 'OFF';
+const dojoLabel = kataDir ? 'ON' : 'OFF';
+
+// Kata functions — shared between cron scheduler and manual run
+const kataFns = {
+	log,
+	notifyReload: notifyLiveReload,
+	getDispatchState: dispatch.getState,
+};
+
 server.listen(PORT, () => {
 	console.log(`\n  ┌──────────────────────────────────────┐`);
 	console.log(`  │                                      │`);
@@ -1197,11 +1342,18 @@ server.listen(PORT, () => {
 	console.log(`  │   live-reload: ON                    │`);
 	console.log(`  │   git sync: ${syncLabel.padEnd(25)}│`);
 	console.log(`  │   auto-archive: ${archiveLabel.padEnd(19)}│`);
+	console.log(`  │   dojo: ${dojoLabel.padEnd(27)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
 
 	if (config.archiveDoneAfterDays) {
 		autoArchiveSweep();
 		setInterval(autoArchiveSweep, 12 * 60 * 60 * 1000);
+	}
+
+	// Start kata scheduler if dojo and agent are both configured
+	if (kataDir && agentDriver && agentConfig) {
+		const count = kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
+		log(`🥋 Dojo scheduler started — ${count} kata scheduled`);
 	}
 });
