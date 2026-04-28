@@ -1178,23 +1178,38 @@ function createPromoteTooltip() {
   if (promoteTooltip) return promoteTooltip;
   const el = document.createElement('div');
   el.className = 'promote-tooltip';
-  el.innerHTML = '<button class="promote-tooltip-btn">📋 Promote to card</button>';
+  el.innerHTML = '<button class="promote-tooltip-btn promote-card">📋 Card</button><button class="promote-tooltip-btn promote-mute">🔇 Mute</button>';
   el.style.display = 'none';
   document.body.appendChild(el);
   promoteTooltip = el;
 
-  el.querySelector('.promote-tooltip-btn').addEventListener('click', () => {
+  el.querySelector('.promote-card').addEventListener('click', () => {
     const sel = window.getSelection();
     const text = sel.toString().trim();
     if (!text) return;
 
-    // Pre-fill the new card modal with the selected text
     const overlay = document.getElementById('modal-overlay');
     const descField = overlay?.querySelector('textarea[name="description"]');
     if (descField) descField.value = text;
     overlay?.classList.add('open');
 
-    // Clear selection and hide tooltip
+    sel.removeAllRanges();
+    promoteTooltip.style.display = 'none';
+  });
+
+  el.querySelector('.promote-mute').addEventListener('click', async () => {
+    const sel = window.getSelection();
+    const text = sel.toString().trim();
+    if (!text || !currentSweepKataId) return;
+
+    try {
+      await fetch(`/api/dojo/kata/${encodeURIComponent(currentSweepKataId)}/mute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+    } catch (_) {}
+
     sel.removeAllRanges();
     promoteTooltip.style.display = 'none';
   });
