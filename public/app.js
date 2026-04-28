@@ -1148,9 +1148,18 @@ async function openSweepDetail(kataId, file) {
   try {
     const res = await fetch(`/api/dojo/sweeps/${encodeURIComponent(kataId)}/${encodeURIComponent(file)}`);
     const data = await res.json();
+    let md = data.content || 'No content.';
+
+    // Strip the first H1 — it duplicates the modal title
+    const h1Match = md.match(/^#\s+(.+)\n*/);
+    if (h1Match) {
+      title.textContent = h1Match[1];
+      md = md.slice(h1Match[0].length);
+    }
+
     content.innerHTML = typeof marked !== 'undefined'
-      ? marked.parse(data.content || 'No content.')
-      : escapeHtml(data.content || 'No content.');
+      ? marked.parse(md)
+      : escapeHtml(md);
   } catch (_) {
     content.textContent = 'Failed to load sweep report.';
   }
