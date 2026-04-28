@@ -1677,16 +1677,77 @@ body.dojo-mode .goal-banner {
 	font-size: 0.8125rem;
 	line-height: 1.7;
 	color: var(--text);
-	white-space: pre-wrap;
-	font-family: var(--font-mono);
 	background: var(--bg);
 	border-radius: 8px;
-	padding: 16px;
+	padding: 16px 20px;
 	margin-bottom: 16px;
 	max-height: 50vh;
 	overflow-y: auto;
 	scrollbar-width: thin;
 	scrollbar-color: var(--border) transparent;
+}
+
+.sweep-detail-content h1,
+.sweep-detail-content h2,
+.sweep-detail-content h3 {
+	margin-top: 16px;
+	margin-bottom: 8px;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.sweep-detail-content h1 { font-size: 1rem; }
+.sweep-detail-content h2 { font-size: 0.875rem; }
+.sweep-detail-content h3 { font-size: 0.8125rem; }
+
+.sweep-detail-content h1:first-child,
+.sweep-detail-content h2:first-child {
+	margin-top: 0;
+}
+
+.sweep-detail-content ul,
+.sweep-detail-content ol {
+	padding-left: 20px;
+	margin: 8px 0;
+}
+
+.sweep-detail-content li {
+	margin-bottom: 4px;
+}
+
+.sweep-detail-content code {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	background: var(--surface);
+	padding: 1px 5px;
+	border-radius: 4px;
+	border: 1px solid var(--border-subtle);
+}
+
+.sweep-detail-content pre {
+	background: var(--surface);
+	border: 1px solid var(--border-subtle);
+	border-radius: 6px;
+	padding: 10px 12px;
+	overflow-x: auto;
+	margin: 8px 0;
+}
+
+.sweep-detail-content pre code {
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+.sweep-detail-content p {
+	margin: 8px 0;
+}
+
+.sweep-detail-content blockquote {
+	border-left: 3px solid var(--accent);
+	padding-left: 12px;
+	color: var(--text-muted);
+	margin: 8px 0;
 }
 
 .sweep-detail-actions {
