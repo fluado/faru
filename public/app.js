@@ -1022,3 +1022,272 @@ document.addEventListener('keydown', (e) => {
 });
 
 setupDispatchModal();
+
+// --- Dojo ---
+
+let dojoEnabled = false;
+let isDojoView = false;
+
+function enterDojoView() {
+  isDojoView = true;
+  // Exit archive if active
+  if (isArchiveView) {
+    isArchiveView = false;
+    document.body.classList.remove('archive-mode');
+    document.getElementById('btn-toggle-archive').textContent = 'Archive';
+  }
+  document.body.classList.add('dojo-mode');
+  document.getElementById('dojo-view').style.display = '';
+  document.getElementById('btn-toggle-dojo').textContent = 'Exit Dojo';
+  fetchSweeps();
+}
+
+function exitDojoView() {
+  isDojoView = false;
+  document.body.classList.remove('dojo-mode');
+  document.getElementById('dojo-view').style.display = 'none';
+  document.getElementById('btn-toggle-dojo').textContent = 'Dojo';
+}
+
+document.getElementById('btn-toggle-dojo')?.addEventListener('click', () => {
+  if (isDojoView) {
+    exitDojoView();
+  } else {
+    enterDojoView();
+  }
+});
+
+// --- Dojo Timeline ---
+
+async function fetchSweeps() {
+  try {
+    const res = await fetch('/api/dojo/sweeps');
+    const sweeps = await res.json();
+    renderDojoTimeline(sweeps);
+  } catch (_) {
+    renderDojoTimeline([]);
+  }
+}
+
+function renderDojoTimeline(sweeps) {
+  const container = document.getElementById('dojo-timeline');
+  if (sweeps.length === 0) {
+    container.innerHTML = '<div class="dojo-empty">No sweeps yet. Create a kata to get started.</div>';
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  for (const s of sweeps) {
+    if (!groups[s.date]) groups[s.date] = [];
+    groups[s.date].push(s);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  let html = '';
+  for (const [date, items] of Object.entries(groups)) {
+    let label = date;
+    if (date === today) label = 'Today';
+    else if (date === yesterday) label = 'Yesterday';
+
+    html += `<div class="dojo-date-group">`;
+    html += `<div class="dojo-date-label">${escapeHtml(label)}</div>`;
+
+    for (const s of items) {
+      const dotClass = s.summary.includes('finding') ? 'findings'
+        : s.summary.includes('fail') ? 'failed'
+        : s.summary.includes('fixed') ? 'completed'
+        : 'healthy';
+
+      html += `
+        <div class="dojo-sweep" data-kata-id="${escapeHtml(s.kataId)}" data-sweep-file="${escapeHtml(s.file)}">
+          <span class="dojo-sweep-dot ${dotClass}"></span>
+          <span class="dojo-sweep-name">${escapeHtml(s.kataTitle)}</span>
+          <span class="dojo-sweep-summary">${escapeHtml(s.summary)}</span>
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // Attach click handlers to sweep entries
+  container.querySelectorAll('.dojo-sweep').forEach(el => {
+    el.addEventListener('click', () => {
+      const kataId = el.dataset.kataId;
+      const file = el.dataset.sweepFile;
+      openSweepDetail(kataId, file);
+    });
+  });
+}
+
+// --- Sweep Detail Modal ---
+
+let currentSweepKataId = null;
+let currentSweepFile = null;
+
+async function openSweepDetail(kataId, file) {
+  currentSweepKataId = kataId;
+  currentSweepFile = file;
+
+  const overlay = document.getElementById('sweep-detail-overlay');
+  const title = document.getElementById('sweep-detail-title');
+  const content = document.getElementById('sweep-detail-content');
+
+  title.textContent = `${kataId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} — ${file.replace('-sweep.md', '')}`;
+
+  try {
+    const res = await fetch(`/api/dojo/sweeps/${encodeURIComponent(kataId)}/${encodeURIComponent(file)}`);
+    const data = await res.json();
+    content.textContent = data.content || 'No content.';
+  } catch (_) {
+    content.textContent = 'Failed to load sweep report.';
+  }
+
+  overlay.classList.add('open');
+}
+
+document.getElementById('sweep-detail-close')?.addEventListener('click', () => {
+  document.getElementById('sweep-detail-overlay').classList.remove('open');
+});
+
+document.getElementById('sweep-detail-overlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'sweep-detail-overlay') {
+    e.target.classList.remove('open');
+  }
+});
+
+document.getElementById('sweep-detail-open')?.addEventListener('click', () => {
+  if (currentSweepKataId && currentSweepFile) {
+    fetch('/api/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kataFile: `${currentSweepKataId}/${currentSweepFile}` }),
+    });
+  }
+});
+
+// --- Manage Kata Modal ---
+
+document.getElementById('btn-manage-kata')?.addEventListener('click', () => {
+  fetchKataList();
+  document.getElementById('kata-manage-overlay').classList.add('open');
+});
+
+document.getElementById('kata-manage-close')?.addEventListener('click', () => {
+  document.getElementById('kata-manage-overlay').classList.remove('open');
+});
+
+document.getElementById('kata-manage-overlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'kata-manage-overlay') {
+    e.target.classList.remove('open');
+  }
+});
+
+async function fetchKataList() {
+  try {
+    const res = await fetch('/api/dojo/kata');
+    const kataList = await res.json();
+    renderKataList(kataList);
+  } catch (_) {
+    renderKataList([]);
+  }
+}
+
+function renderKataList(kataList) {
+  const container = document.getElementById('kata-list');
+  if (kataList.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = kataList.map(k => {
+    const isPaused = !k.schedule || k.schedule === 'paused';
+    const badgeClass = isPaused ? 'paused' : 'active';
+    const badgeText = isPaused ? 'paused' : 'active';
+    const scheduleText = isPaused ? 'paused' : k.schedule;
+
+    return `
+      <div class="kata-item">
+        <div class="kata-item-info">
+          <div class="kata-item-name">${escapeHtml(k.title)}</div>
+          <div class="kata-item-schedule">${escapeHtml(scheduleText)}</div>
+        </div>
+        <span class="kata-item-badge ${badgeClass}">${badgeText}</span>
+        <div class="kata-item-actions">
+          <button class="kata-item-btn run-now" data-kata-id="${escapeHtml(k.id)}" title="Run now">▶ Run</button>
+          <button class="kata-item-btn" data-kata-id="${escapeHtml(k.id)}" data-action="open" title="Open in editor">Edit</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Attach handlers
+  container.querySelectorAll('.kata-item-btn.run-now').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.kataId;
+      btn.textContent = '⏳';
+      btn.disabled = true;
+      try {
+        await fetch(`/api/dojo/kata/${encodeURIComponent(id)}/run`, { method: 'POST' });
+      } catch (_) {}
+      // Refresh after a brief delay (sweep runs async)
+      setTimeout(() => {
+        btn.textContent = '▶ Run';
+        btn.disabled = false;
+        fetchSweeps();
+      }, 1000);
+    });
+  });
+
+  container.querySelectorAll('.kata-item-btn[data-action="open"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.kataId;
+      fetch('/api/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kataFile: `${id}.md` }),
+      });
+    });
+  });
+}
+
+// --- New Kata Form ---
+
+document.getElementById('new-kata-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form));
+
+  try {
+    await fetch('/api/dojo/kata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    form.reset();
+    fetchKataList();
+  } catch (_) {
+    alert('Failed to create kata');
+  }
+});
+
+// --- Dojo Escape key ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('kata-manage-overlay')?.classList.remove('open');
+    document.getElementById('sweep-detail-overlay')?.classList.remove('open');
+  }
+});
+
+// --- Dojo SSE refresh ---
+// The existing SSE reload handler calls fetchCards(). We hook into it
+// to also refresh sweeps when in dojo view.
+const _originalFetchCards = fetchCards;
+fetchCards = async function() {
+  await _originalFetchCards();
+  if (isDojoView) fetchSweeps();
+};
