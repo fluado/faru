@@ -311,25 +311,23 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			// injected by the orchestrator, not part of any skill prompt.
 			// The prompt content is user-configured — dispatch is agnostic
 			// about what the verification checks for.
-			// Sentinel is primary completion signal; idle detection in the
-			// driver is the fallback if the agent finishes without creating it.
+			//
+			// Completion: idle detection (no sentinel). Sentinel-based
+			// completion is unreliable here — agents focus on the audit and
+			// skip the file-creation instruction. Idle detection (3 polls,
+			// ~9s of inactivity) is appropriate because the verify pass is
+			// a bounded review, not an open-ended implementation task.
 			// ---------------------------------------------------------------
-			const verifySentinelPath = `backlog/${card.slug}/.dispatch-verify`;
-			const verifySentinelAbsPath = path.join(fns.backlogDir, card.slug, ".dispatch-verify");
-			try { fs.unlinkSync(verifySentinelAbsPath); } catch (_) {}
-
 			const basePrompt = typeof agentConfig.verify === "string"
 				? agentConfig.verify
 				: "Review what was requested and what you produced. List each requirement, confirm it is done or flag it as incomplete. Fix anything incomplete now.";
 
-			const verifyPrompt = `${basePrompt} When finished, create \`${verifySentinelPath}\` with content \`done\`.`;
-
 			fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass for ${step.skill}`);
 
 			const verifyResult = await driver.execute(
-				verifyPrompt,
+				basePrompt,
 				agentConfig,
-				verifySentinelAbsPath,
+				null,
 			);
 
 			if (!verifyResult.success) {
