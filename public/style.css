@@ -1755,3 +1755,36 @@ body.dojo-mode .goal-banner {
 	justify-content: flex-end;
 	gap: 8px;
 }
+
+/* Promote tooltip — appears on text selection in sweep detail */
+.promote-tooltip {
+	position: absolute;
+	z-index: 9999;
+	transform: translateX(-50%);
+	pointer-events: auto;
+	animation: promoteIn 0.12s ease-out;
+}
+
+@keyframes promoteIn {
+	from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+	to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.promote-tooltip-btn {
+	font-family: var(--font);
+	font-size: 0.6875rem;
+	font-weight: 600;
+	color: #fff;
+	background: var(--accent);
+	border: none;
+	border-radius: 6px;
+	padding: 5px 12px;
+	cursor: pointer;
+	white-space: nowrap;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+	transition: background var(--transition);
+}
+
+.promote-tooltip-btn:hover {
+	background: var(--accent-hover);
+}
