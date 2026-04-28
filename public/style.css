@@ -1667,9 +1667,10 @@ body.dojo-mode .goal-banner {
 
 /* Sweep detail modal */
 .modal-sweep-detail {
-	max-width: 600px;
+	max-width: 900px;
+	width: 90vw;
 	padding: 24px;
-	max-height: 80vh;
+	max-height: 90vh;
 	overflow-y: auto;
 }
 
@@ -1679,9 +1680,9 @@ body.dojo-mode .goal-banner {
 	color: var(--text);
 	background: var(--bg);
 	border-radius: 8px;
-	padding: 16px 20px;
+	padding: 20px 24px;
 	margin-bottom: 16px;
-	max-height: 50vh;
+	max-height: 70vh;
 	overflow-y: auto;
 	scrollbar-width: thin;
 	scrollbar-color: var(--border) transparent;
