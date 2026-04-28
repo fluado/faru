@@ -360,13 +360,15 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 						if (val.isIdle && !val.isGenerating) {
 							idleCount++;
 							if (idleCount >= 3) {
+								// Agent is genuinely done — cancel button is gone,
+								// send button is back. Check sentinel first (preferred),
+								// but accept idle alone as sufficient.
 								if (sentinelPath) {
 									try {
 										if (fs.existsSync(sentinelPath)) return true;
 									} catch (_) {}
-								} else {
-									return true;
 								}
+								return true;
 							}
 						} else {
 							idleCount = 0;
