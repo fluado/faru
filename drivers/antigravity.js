@@ -326,6 +326,7 @@ async function waitForIdle(port, timeoutMs) {
 async function waitForCompletion(port, timeoutMs, sentinelPath) {
 	const fs = require("fs");
 	const start = Date.now();
+	let idleCount = 0;
 
 	// Give the agent a few seconds to start working before polling
 	await sleep(5000);
@@ -355,14 +356,22 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 					const val = check?.result?.value;
 					await client.close();
 
-					if (val && val.hasChat && val.isIdle && !val.isGenerating) {
-						// Double-check sentinel before trusting idle (agent may still be writing)
-						await sleep(2000);
-						if (sentinelPath) {
-							try {
-								if (fs.existsSync(sentinelPath)) return true;
-							} catch (_) {}
+					if (val && val.hasChat) {
+						if (val.isIdle && !val.isGenerating) {
+							idleCount++;
+							if (idleCount >= 3) {
+								if (sentinelPath) {
+									try {
+										if (fs.existsSync(sentinelPath)) return true;
+									} catch (_) {}
+								} else {
+									return true;
+								}
+							}
+						} else {
+							idleCount = 0;
 						}
+						break;
 					}
 				} catch (_) {}
 			}
