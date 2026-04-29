@@ -309,11 +309,12 @@ A kata file uses YAML frontmatter for scheduling and a body for the prompt:
 
 ```yaml
 ---
-schedule: 0 2 * * 1
+schedule: 0 9 * * 1
 ---
 
-Act as @[docs/skills/software-gardener.md].
-Run a full sweep of backend and webapp...
+Find all TODO, FIXME, and HACK comments in the codebase.
+For each, assess if it's still relevant or can be resolved now.
+Write a prioritized report to kata/todo-sweep/{date}-sweep.md.
 ```
 
 | Frontmatter | Description |
