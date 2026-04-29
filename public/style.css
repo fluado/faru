@@ -328,7 +328,7 @@ body {
 }
 
 .card.unread::after {
-	content: '';
+	content: "";
 	position: absolute;
 	right: 14px;
 	top: 19px;
@@ -339,12 +339,28 @@ body {
 }
 
 @keyframes unread-cycle {
-	0%, 100% { background: #a78bfa; opacity: 1; }
-	12% { opacity: 0.3; }
-	33% { background: #ef4444; opacity: 1; }
-	45% { opacity: 0.3; }
-	66% { background: #3b82f6; opacity: 1; }
-	78% { opacity: 0.3; }
+	0%,
+	100% {
+		background: #a78bfa;
+		opacity: 1;
+	}
+	12% {
+		opacity: 0.3;
+	}
+	33% {
+		background: #ef4444;
+		opacity: 1;
+	}
+	45% {
+		opacity: 0.3;
+	}
+	66% {
+		background: #3b82f6;
+		opacity: 1;
+	}
+	78% {
+		opacity: 0.3;
+	}
 }
 
 .card-title {
@@ -392,6 +408,14 @@ body {
 .category.infra {
 	background: var(--green-bg);
 	color: var(--green-text);
+}
+.category.security {
+	background: var(--red-bg);
+	color: var(--red-text);
+}
+.category.marketing {
+	background: var(--orange-bg);
+	color: var(--orange-text);
 }
 
 .card-meta-right {
@@ -1200,8 +1224,13 @@ body.archive-mode .btn-column-add {
 }
 
 @keyframes dispatchPulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.7; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
 }
 
 .modal-dispatch {
@@ -1504,7 +1533,9 @@ body.dojo-mode .goal-banner {
 	gap: 12px;
 	cursor: pointer;
 	box-shadow: var(--shadow-card);
-	transition: box-shadow var(--transition), transform var(--transition);
+	transition:
+		box-shadow var(--transition),
+		transform var(--transition);
 }
 
 .dojo-sweep:hover {
@@ -1697,9 +1728,15 @@ body.dojo-mode .goal-banner {
 	color: var(--text);
 }
 
-.sweep-detail-content h1 { font-size: 1rem; }
-.sweep-detail-content h2 { font-size: 0.875rem; }
-.sweep-detail-content h3 { font-size: 0.8125rem; }
+.sweep-detail-content h1 {
+	font-size: 1rem;
+}
+.sweep-detail-content h2 {
+	font-size: 0.875rem;
+}
+.sweep-detail-content h3 {
+	font-size: 0.8125rem;
+}
 
 .sweep-detail-content h1:first-child,
 .sweep-detail-content h2:first-child {
@@ -1805,8 +1842,14 @@ body.dojo-mode .goal-banner {
 }
 
 @keyframes promoteIn {
-	from { opacity: 0; transform: translateX(-50%) translateY(4px); }
-	to { opacity: 1; transform: translateX(-50%) translateY(0); }
+	from {
+		opacity: 0;
+		transform: translateX(-50%) translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(-50%) translateY(0);
+	}
 }
 
 .promote-tooltip-btn {
