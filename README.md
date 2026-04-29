@@ -379,7 +379,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 
 ## Philosophy
 
-The board is a view layer. Your editor is the workspace.
+The board is a view layer. Your editor is the workspace. Your agents are the workforce.
 
 Cards are markdown files. You can edit them in VS Code, Vim, or whatever you use — the board picks up changes instantly via live reload. The card detail view handles quick metadata tweaks (status, assignee, type), but for anything beyond that, click "Open in Editor" and you're in your real environment with full editing power, search, git history, and AI assistance. The board doesn't try to be an editor. It shows you the state of work and gets out of the way.
 
@@ -387,7 +387,9 @@ faru has 3 columns: Todo, WIP, Done. You can't add more. This is intentional.
 
 More columns means more places for work to stall. "In Review," "Blocked," "Ready for QA" are symptoms, not workflow stages. If something is blocked, fix the blocker or move it back to Todo. If it's in review, it's still WIP.
 
-This comes from lean thinking and trunk-based development. Minimize work in progress. Ship small. Keep things moving. A card is either not started, being worked on, or done. Three states is enough.
+Agent dispatch follows the same principle. A skill is either not started, running, or done. No approval queues, no staging lanes. The agent picks up the card, does the work, and reports back via comments. Dojo extends this to recurring work — kata run on schedule, sweep reports accumulate, and you triage findings into cards or mute them. The feedback loop is the kata file itself.
+
+This comes from lean thinking and trunk-based development. Minimize work in progress. Ship small. Keep things moving.
 
 ## FAQ
 
