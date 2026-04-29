@@ -1217,7 +1217,7 @@ function createPromoteTooltip() {
   return el;
 }
 
-document.getElementById('sweep-detail-content')?.addEventListener('mouseup', () => {
+document.getElementById('sweep-detail-content')?.addEventListener('contextmenu', (e) => {
   const sel = window.getSelection();
   const text = sel.toString().trim();
   const tooltip = createPromoteTooltip();
@@ -1227,12 +1227,10 @@ document.getElementById('sweep-detail-content')?.addEventListener('mouseup', () 
     return;
   }
 
-  // Position tooltip near selection
-  const range = sel.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
+  e.preventDefault();
   tooltip.style.display = '';
-  tooltip.style.top = `${rect.top + window.scrollY - 36}px`;
-  tooltip.style.left = `${rect.left + window.scrollX + rect.width / 2}px`;
+  tooltip.style.top = `${e.pageY - 36}px`;
+  tooltip.style.left = `${e.pageX}px`;
 });
 
 // Hide tooltip on click elsewhere
