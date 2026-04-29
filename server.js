@@ -930,17 +930,21 @@ const server = http.createServer(async (req, res) => {
 				res.end(JSON.stringify({ error: "text is required" }));
 				return;
 			}
-			const sweepDir = path.join(kataDir, kataId);
-			if (!fs.existsSync(sweepDir)) {
-				fs.mkdirSync(sweepDir, { recursive: true });
+			const kataFile = path.join(kataDir, `${kataId}.md`);
+			if (!fs.existsSync(kataFile)) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Kata not found" }));
+				return;
 			}
-			const mutedPath = path.join(sweepDir, "muted.md");
-			const bullet = `- ${text.split("\n").join(" ").substring(0, 200)}\n`;
-			if (fs.existsSync(mutedPath)) {
-				fs.appendFileSync(mutedPath, bullet, "utf-8");
+			const content = fs.readFileSync(kataFile, "utf-8");
+			const bullet = `- ${text.split("\n").join(" ").substring(0, 200)}`;
+			let updated;
+			if (content.includes("## Ignore")) {
+				updated = content.trimEnd() + "\n" + bullet + "\n";
 			} else {
-				fs.writeFileSync(mutedPath, `# Muted Findings\n\n${bullet}`, "utf-8");
+				updated = content.trimEnd() + "\n\n## Ignore\n\n" + bullet + "\n";
 			}
+			fs.writeFileSync(kataFile, updated, "utf-8");
 			log(`🔇 Muted finding for ${kataId}`);
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ muted: true }));

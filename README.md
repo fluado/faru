@@ -289,6 +289,68 @@ After each skill completes, faru can send a follow-up prompt in the same session
 | `"custom prompt"` | Sends your custom prompt instead |
 | omitted / `false` | No verification pass |
 
+### Dojo — Kata Scheduler (optional)
+
+Dojo is a cron scheduler that runs recurring agent tasks ("kata"). Each kata is a markdown file in a directory you configure. On schedule, faru dispatches the kata prompt through the same agent driver used for card dispatch.
+
+```json
+{
+  "scheduler": {
+    "kataDir": "./kata"
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `kataDir` | Path to the directory containing kata markdown files, relative to project root |
+
+A kata file uses YAML frontmatter for scheduling and a body for the prompt:
+
+```yaml
+---
+schedule: 0 2 * * 1
+---
+
+Act as @[docs/skills/software-gardener.md].
+Run a full sweep of backend and webapp...
+```
+
+| Frontmatter | Description |
+|---|---|
+| `schedule` | A cron expression (e.g. `0 2 * * 1` = Monday 2am). Set to `paused` to disable |
+
+Kata files support an `## Ignore` section — when you mute a finding from the sweep report UI (select text → right-click → Mute), it appends to this section. The agent sees the ignore list on subsequent runs:
+
+```markdown
+## Ignore
+
+- Some finding that's already tracked elsewhere
+- Another known issue we're deferring
+```
+
+#### Sweep Reports
+
+When a kata runs, the agent writes a sweep report to `kata/{kata-id}/{date}-sweep.md`. Reports can include YAML frontmatter for the dojo timeline:
+
+```yaml
+---
+verdict: needs-attention
+summary: 3 findings, 1 critical
+---
+```
+
+| Verdict | Timeline dot color |
+|---|---|
+| `healthy` | Green |
+| `needs-attention` | Amber |
+| `critical` | Red |
+| (default) | Green |
+
+The Dojo view (toggle via the header button) shows a timeline of all sweep reports. Click a report to read it, select text and right-click to promote a finding to a card or mute it.
+
+Dojo watches the kata directory for changes — editing a kata file automatically reloads cron schedules. Both `agent` and `scheduler` must be configured for scheduled runs; manual runs are also available from the Manage Kata UI.
+
 ## Creating Cards
 
 Tell your agent:
@@ -300,6 +362,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 ## Features
 
 - **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with an Antigravity CDP driver). Skills are markdown files that self-describe their chain ordering via frontmatter. After each skill completes, an optional verification pass prompts the agent to audit its own work before moving on
+- **Dojo (kata scheduler)** — run recurring agent tasks on cron schedules. Kata are markdown prompts with frontmatter scheduling. Sweep reports appear in a timeline UI where you can promote findings to cards or mute them. Hot-reloads cron schedules when kata files change
 - **Weekly Goal** — set a high-level focus via an editable board banner that saves directly to `weekly-goal.md` in your project root
 - **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
 - **External links** — attach references or external spec folders to any card via a `links:` array in the YAML frontmatter
@@ -357,6 +420,13 @@ No. We ship updates to `main` when something is ready. There are no stability gu
 <summary>Can I use Agent Dispatch with Cursor, Claude Code, Gemini CLI, etc.?</summary>
 
 Only an Antigravity driver ships with faru. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, and `abort`, then set `"driver": "your-driver"` in the config. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
+
+</details>
+
+<details>
+<summary>How does Dojo differ from just running a cron job?</summary>
+
+Dojo reuses the same agent driver as card dispatch — it opens a fresh IDE session, sends the prompt, waits for the sentinel file, and records the result. The sweep timeline gives you a persistent audit trail with rendered markdown reports. The mute-to-ignore-section flow means your kata prompt self-corrects over time as you dismiss known findings. And hot-reloading means you can tweak schedules by editing the kata file — no process restart needed.
 
 </details>
 
