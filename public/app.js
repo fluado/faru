@@ -1041,9 +1041,16 @@ function setActiveTab(tab) {
 function switchToView(view) {
   // Reset all view states
   isDojoView = false;
-  isArchiveView = false;
-  document.body.classList.remove('dojo-mode', 'archive-mode');
+  document.body.classList.remove('dojo-mode');
   document.getElementById('dojo-view').style.display = 'none';
+
+  // Exit archive when switching views
+  if (isArchiveView) {
+    isArchiveView = false;
+    document.body.classList.remove('archive-mode');
+    const archiveBtn = document.getElementById('btn-toggle-archive');
+    if (archiveBtn) archiveBtn.textContent = 'Archive';
+  }
 
   if (view === 'dojo') {
     isDojoView = true;
@@ -1051,9 +1058,6 @@ function switchToView(view) {
     document.getElementById('dojo-view').style.display = '';
     fetchSweeps();
     fetchSidebarKata();
-  } else if (view === 'archive') {
-    isArchiveView = true;
-    document.body.classList.add('archive-mode');
   }
 
   setActiveTab(view);
