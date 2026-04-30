@@ -1046,6 +1046,7 @@ function enterDojoView() {
   document.getElementById('dojo-view').style.display = '';
   document.getElementById('btn-toggle-dojo').textContent = 'Exit Dojo';
   fetchSweeps();
+  fetchSidebarKata();
 }
 
 function exitDojoView() {
@@ -1252,7 +1253,8 @@ document.getElementById('sweep-detail-open')?.addEventListener('click', () => {
 
 // --- Manage Kata Modal ---
 
-document.getElementById('btn-manage-kata')?.addEventListener('click', () => {
+// Sidebar "+ New" button opens the kata modal
+document.getElementById('btn-new-kata-sidebar')?.addEventListener('click', () => {
   fetchKataList();
   document.getElementById('kata-manage-overlay').classList.add('open');
 });
@@ -1275,6 +1277,96 @@ async function fetchKataList() {
   } catch (_) {
     renderKataList([]);
   }
+}
+
+// --- Sidebar Kata ---
+
+async function fetchSidebarKata() {
+  try {
+    const res = await fetch('/api/dojo/kata');
+    const kataList = await res.json();
+    // Also fetch latest sweep verdicts
+    let sweeps = [];
+    try {
+      const sr = await fetch('/api/dojo/sweeps');
+      sweeps = await sr.json();
+    } catch (_) {}
+    renderSidebarKata(kataList, sweeps);
+  } catch (_) {
+    renderSidebarKata([], []);
+  }
+}
+
+function renderSidebarKata(kataList, sweeps) {
+  const container = document.getElementById('dojo-sidebar-list');
+  if (!container) return;
+
+  if (kataList.length === 0) {
+    container.innerHTML = '<div class="dojo-empty" style="padding:20px 10px;font-size:0.75rem">No kata yet.</div>';
+    return;
+  }
+
+  // Build a map of latest verdict per kata
+  const latestVerdict = {};
+  for (const s of sweeps) {
+    if (!latestVerdict[s.kataId]) {
+      latestVerdict[s.kataId] = s.verdict;
+    }
+  }
+
+  container.innerHTML = kataList.map(k => {
+    const verdict = latestVerdict[k.id] || 'unknown';
+    const dotClass = verdict === 'needs-attention' ? 'findings'
+      : verdict === 'critical' ? 'failed'
+      : verdict === 'healthy' ? 'healthy'
+      : 'unknown';
+    const isPaused = !k.schedule || k.schedule === 'paused';
+    const scheduleText = isPaused ? 'paused' : k.schedule;
+
+    return `
+      <div class="dojo-kata-item">
+        <div class="dojo-kata-name">
+          <span class="dojo-kata-dot ${dotClass}"></span>
+          ${escapeHtml(k.title)}
+        </div>
+        <div class="dojo-kata-schedule">${escapeHtml(scheduleText)}</div>
+        <div class="dojo-kata-actions">
+          <button class="dojo-kata-btn run-now" data-kata-id="${escapeHtml(k.id)}" title="Run now">▶ Run</button>
+          <button class="dojo-kata-btn" data-kata-id="${escapeHtml(k.id)}" data-action="edit" title="Edit kata">✏</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Run button handlers
+  container.querySelectorAll('.dojo-kata-btn.run-now').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.kataId;
+      btn.textContent = '⏳';
+      btn.disabled = true;
+      try {
+        await fetch(`/api/dojo/kata/${encodeURIComponent(id)}/run`, { method: 'POST' });
+      } catch (_) {}
+      setTimeout(() => {
+        btn.textContent = '▶ Run';
+        btn.disabled = false;
+        fetchSweeps();
+        fetchSidebarKata();
+      }, 1000);
+    });
+  });
+
+  // Edit button handlers — open kata file in editor
+  container.querySelectorAll('.dojo-kata-btn[data-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.kataId;
+      fetch('/api/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kataFile: `${id}.md` }),
+      });
+    });
+  });
 }
 
 function renderKataList(kataList) {
