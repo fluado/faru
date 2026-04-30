@@ -119,6 +119,44 @@ body {
 	font-weight: 600;
 }
 
+.header-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.header-tabs {
+	display: flex;
+	gap: 2px;
+	background: var(--surface-active);
+	border-radius: 8px;
+	padding: 2px;
+}
+
+.btn-tab {
+	font-family: var(--font);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	padding: 5px 14px;
+	border-radius: 6px;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all var(--transition);
+}
+
+.btn-tab:hover {
+	color: var(--text);
+}
+
+.btn-tab.active {
+	background: var(--surface);
+	color: var(--text);
+	font-weight: 600;
+	box-shadow: var(--shadow-sm);
+}
+
 /* === Goal Banner === */
 .goal-banner {
 	display: flex;
