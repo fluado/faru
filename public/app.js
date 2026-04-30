@@ -616,8 +616,16 @@ setupDropZones();
 setupNewCardModal();
 setupDetailModal();
 
-document.getElementById('btn-tab-archive')?.addEventListener('click', () => {
-  switchToView('archive');
+document.getElementById('btn-toggle-archive')?.addEventListener('click', (e) => {
+  isArchiveView = !isArchiveView;
+  if (isArchiveView) {
+    document.body.classList.add('archive-mode');
+    e.target.textContent = 'Exit Archive';
+  } else {
+    document.body.classList.remove('archive-mode');
+    e.target.textContent = 'Archive';
+  }
+  fetchCards();
 });
 
 fetchCards();
