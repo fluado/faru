@@ -206,6 +206,26 @@ body {
 	font-style: italic;
 }
 
+.btn-archive-toggle {
+	font-family: var(--font);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	color: var(--text-faint);
+	background: none;
+	border: 1px solid var(--border);
+	cursor: pointer;
+	padding: 3px 10px;
+	border-radius: 6px;
+	flex-shrink: 0;
+	transition: all var(--transition);
+}
+
+.btn-archive-toggle:hover {
+	background: var(--surface);
+	color: var(--text-muted);
+	border-color: var(--border-hover);
+}
+
 /* === Board === */
 .board {
 	display: grid;
