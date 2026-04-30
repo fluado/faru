@@ -1674,10 +1674,6 @@ body.dojo-mode .board {
 	display: none;
 }
 
-body.dojo-mode .goal-banner {
-	display: none;
-}
-
 /* Timeline */
 .dojo-timeline {
 	display: flex;
