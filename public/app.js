@@ -656,11 +656,10 @@ fetch('/api/config')
         .catch(() => {});
       startDispatchPolling();
     }
-    // Dojo tab
     dojoEnabled = cfg.dojoEnabled || false;
     if (dojoEnabled) {
-      const dojoBtn = document.getElementById('btn-toggle-dojo');
-      if (dojoBtn) dojoBtn.style.display = '';
+      const dojoTab = document.getElementById('btn-tab-dojo');
+      if (dojoTab) dojoTab.style.display = '';
     }
   })
   .catch(() => {});
@@ -1034,6 +1033,11 @@ setupDispatchModal();
 let dojoEnabled = false;
 let isDojoView = false;
 
+function setActiveTab(tab) {
+  document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(`btn-tab-${tab}`)?.classList.add('active');
+}
+
 function enterDojoView() {
   isDojoView = true;
   // Exit archive if active
@@ -1044,7 +1048,8 @@ function enterDojoView() {
   }
   document.body.classList.add('dojo-mode');
   document.getElementById('dojo-view').style.display = '';
-  document.getElementById('btn-toggle-dojo').textContent = 'Exit Dojo';
+  document.getElementById('btn-toggle-archive').style.display = 'none';
+  setActiveTab('dojo');
   fetchSweeps();
   fetchSidebarKata();
 }
@@ -1053,15 +1058,16 @@ function exitDojoView() {
   isDojoView = false;
   document.body.classList.remove('dojo-mode');
   document.getElementById('dojo-view').style.display = 'none';
-  document.getElementById('btn-toggle-dojo').textContent = 'Dojo';
+  document.getElementById('btn-toggle-archive').style.display = '';
+  setActiveTab('board');
 }
 
-document.getElementById('btn-toggle-dojo')?.addEventListener('click', () => {
-  if (isDojoView) {
-    exitDojoView();
-  } else {
-    enterDojoView();
-  }
+document.getElementById('btn-tab-dojo')?.addEventListener('click', () => {
+  if (!isDojoView) enterDojoView();
+});
+
+document.getElementById('btn-tab-board')?.addEventListener('click', () => {
+  if (isDojoView) exitDojoView();
 });
 
 // --- Dojo Timeline ---
