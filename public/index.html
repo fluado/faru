@@ -56,14 +56,20 @@
 
   <!-- Dojo View (hidden by default) -->
   <div class="dojo-view" id="dojo-view" style="display:none">
-    <div class="dojo-header">
-      <h2 class="dojo-title">Dojo</h2>
-      <div class="dojo-header-actions">
-        <button class="btn-ghost" id="btn-manage-kata">⚙ Manage Kata</button>
+    <aside class="dojo-sidebar">
+      <div class="dojo-sidebar-header">
+        <h2 class="dojo-sidebar-title">Kata</h2>
+        <button class="btn-column-add" id="btn-new-kata-sidebar" title="New kata">+ New</button>
       </div>
-    </div>
-    <div class="dojo-timeline" id="dojo-timeline">
-      <div class="dojo-empty">No sweeps yet. Create a kata to get started.</div>
+      <div class="dojo-sidebar-list" id="dojo-sidebar-list"></div>
+    </aside>
+    <div class="dojo-main">
+      <div class="dojo-main-header">
+        <h2 class="dojo-title">Sweep Log</h2>
+      </div>
+      <div class="dojo-timeline" id="dojo-timeline">
+        <div class="dojo-empty">No sweeps yet. Create a kata to get started.</div>
+      </div>
     </div>
   </div>
 
