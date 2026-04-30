@@ -1497,6 +1497,25 @@ body.archive-mode .btn-column-add {
 	flex: 1;
 }
 
+.btn-sidebar-add {
+	font-family: var(--font);
+	font-size: 0.6875rem;
+	font-weight: 600;
+	padding: 3px 10px;
+	border-radius: 6px;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+	transition: all var(--transition);
+	margin-left: auto;
+}
+
+.btn-sidebar-add:hover {
+	background: var(--accent-light);
+	color: var(--accent-text);
+}
+
 .dojo-sidebar-list {
 	flex: 1;
 	padding: 4px 10px 10px;
