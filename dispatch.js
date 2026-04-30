@@ -209,7 +209,7 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 
 	// Sentinel
 	parts.push(
-		`When done, create \`${sentinelPath}\` with content \`done\`.`,
+		`When done, touch or re-create \`${sentinelPath}\` with content \`done\`.`,
 	);
 
 	return parts.join(" ");
@@ -321,7 +321,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 				? agentConfig.verify
 				: "Review what was requested and what you produced. List each requirement, confirm it is done or flag it as incomplete. Fix anything incomplete now.";
 
-			const verifyPrompt = `${basePrompt} When finished, create \`${sentinelPath}\` with content \`done\`.`;
+			const verifyPrompt = `${basePrompt} When finished, touch or re-create \`${sentinelPath}\` with content \`done\`.`;
 
 			fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass for ${step.skill}`);
 
