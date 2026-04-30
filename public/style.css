@@ -1732,6 +1732,9 @@ body.dojo-mode .board {
 	display: none;
 }
 
+body.dojo-mode .btn-archive-toggle {
+	display: none;
+}
 /* Timeline */
 .dojo-timeline {
 	display: flex;
