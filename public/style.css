@@ -1547,7 +1547,7 @@ body.archive-mode .btn-column-add {
 	position: relative;
 	background: var(--surface);
 	border-radius: var(--radius);
-	padding: 10px 12px;
+	padding: 12px 14px;
 	box-shadow: var(--shadow-card);
 	transition:
 		box-shadow var(--transition),
