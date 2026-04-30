@@ -1460,17 +1460,160 @@ body.archive-mode .btn-column-add {
 /* === Dojo === */
 
 .dojo-view {
+	display: flex;
+	gap: 20px;
 	padding: 24px 28px;
-	max-width: 720px;
-	margin: 0 auto;
 	min-height: calc(100vh - 95px);
+	align-items: flex-start;
 }
 
-.dojo-header {
+/* Sidebar */
+.dojo-sidebar {
+	width: 240px;
+	flex-shrink: 0;
+	background: #fafbfc;
+	border-radius: var(--radius-xl);
+	box-shadow: var(--shadow);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 145px);
+}
+
+.dojo-sidebar-header {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 24px;
+	gap: 8px;
+	padding: 16px 18px 12px;
+	border-top: 3px solid var(--accent);
+}
+
+.dojo-sidebar-title {
+	font-size: 0.7rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+	flex: 1;
+}
+
+.dojo-sidebar-list {
+	flex: 1;
+	padding: 4px 10px 10px;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.dojo-sidebar-list::-webkit-scrollbar {
+	width: 4px;
+}
+
+.dojo-sidebar-list::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.dojo-sidebar-list::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 4px;
+}
+
+/* Sidebar kata item */
+.dojo-kata-item {
+	background: var(--surface);
+	border-radius: var(--radius);
+	padding: 10px 12px;
+	box-shadow: var(--shadow-card);
+	transition:
+		box-shadow var(--transition),
+		transform var(--transition);
+}
+
+.dojo-kata-item:hover {
+	box-shadow: var(--shadow-card-hover);
+}
+
+.dojo-kata-name {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text);
+	line-height: 1.4;
+	margin-bottom: 2px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.dojo-kata-name .dojo-kata-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.dojo-kata-dot.healthy {
+	background: var(--green);
+}
+.dojo-kata-dot.findings {
+	background: var(--amber);
+}
+.dojo-kata-dot.failed {
+	background: var(--red);
+}
+.dojo-kata-dot.unknown {
+	background: var(--text-faint);
+}
+
+.dojo-kata-schedule {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	margin-bottom: 6px;
+}
+
+.dojo-kata-actions {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+}
+
+.dojo-kata-btn {
+	font-family: var(--font);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	color: var(--text-faint);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+	transition: all var(--transition);
+}
+
+.dojo-kata-btn:hover {
+	background: var(--surface-active);
+	color: var(--text);
+}
+
+.dojo-kata-btn.run-now {
+	color: var(--green-text);
+}
+
+.dojo-kata-btn.run-now:hover {
+	background: var(--green-bg);
+}
+
+/* Main timeline */
+.dojo-main {
+	flex: 1;
+	min-width: 0;
+}
+
+.dojo-main-header {
+	margin-bottom: 16px;
 }
 
 .dojo-title {
@@ -1478,11 +1621,6 @@ body.archive-mode .btn-column-add {
 	font-weight: 700;
 	letter-spacing: -0.01em;
 	color: var(--text);
-}
-
-.dojo-header-actions {
-	display: flex;
-	gap: 8px;
 }
 
 /* Dojo mode — hide board, show dojo */
