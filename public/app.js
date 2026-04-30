@@ -1462,5 +1462,8 @@ document.addEventListener('keydown', (e) => {
 const _originalFetchCards = fetchCards;
 fetchCards = async function() {
   await _originalFetchCards();
-  if (isDojoView) fetchSweeps();
+  if (isDojoView) {
+    fetchSweeps();
+    fetchSidebarKata();
+  }
 };
