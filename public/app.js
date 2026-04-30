@@ -616,16 +616,8 @@ setupDropZones();
 setupNewCardModal();
 setupDetailModal();
 
-document.getElementById('btn-toggle-archive')?.addEventListener('click', (e) => {
-  isArchiveView = !isArchiveView;
-  if (isArchiveView) {
-    document.body.classList.add('archive-mode');
-    e.target.textContent = 'Exit Archive';
-  } else {
-    document.body.classList.remove('archive-mode');
-    e.target.textContent = 'Archive';
-  }
-  fetchCards();
+document.getElementById('btn-tab-archive')?.addEventListener('click', () => {
+  switchToView('archive');
 });
 
 fetchCards();
@@ -1038,36 +1030,34 @@ function setActiveTab(tab) {
   document.getElementById(`btn-tab-${tab}`)?.classList.add('active');
 }
 
-function enterDojoView() {
-  isDojoView = true;
-  // Exit archive if active
-  if (isArchiveView) {
-    isArchiveView = false;
-    document.body.classList.remove('archive-mode');
-    document.getElementById('btn-toggle-archive').textContent = 'Archive';
-  }
-  document.body.classList.add('dojo-mode');
-  document.getElementById('dojo-view').style.display = '';
-  document.getElementById('btn-toggle-archive').style.visibility = 'hidden';
-  setActiveTab('dojo');
-  fetchSweeps();
-  fetchSidebarKata();
-}
-
-function exitDojoView() {
+function switchToView(view) {
+  // Reset all view states
   isDojoView = false;
-  document.body.classList.remove('dojo-mode');
+  isArchiveView = false;
+  document.body.classList.remove('dojo-mode', 'archive-mode');
   document.getElementById('dojo-view').style.display = 'none';
-  document.getElementById('btn-toggle-archive').style.visibility = '';
-  setActiveTab('board');
-}
 
-document.getElementById('btn-tab-dojo')?.addEventListener('click', () => {
-  if (!isDojoView) enterDojoView();
-});
+  if (view === 'dojo') {
+    isDojoView = true;
+    document.body.classList.add('dojo-mode');
+    document.getElementById('dojo-view').style.display = '';
+    fetchSweeps();
+    fetchSidebarKata();
+  } else if (view === 'archive') {
+    isArchiveView = true;
+    document.body.classList.add('archive-mode');
+  }
+
+  setActiveTab(view);
+  fetchCards();
+}
 
 document.getElementById('btn-tab-board')?.addEventListener('click', () => {
-  if (isDojoView) exitDojoView();
+  switchToView('board');
+});
+
+document.getElementById('btn-tab-dojo')?.addEventListener('click', () => {
+  switchToView('dojo');
 });
 
 // --- Dojo Timeline ---
