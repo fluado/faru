@@ -1357,7 +1357,7 @@ function renderSidebarKata(kataList, sweeps) {
   });
 
   // Edit button handlers — open kata file in editor
-  container.querySelectorAll('.dojo-kata-btn[data-action="edit"]').forEach(btn => {
+  container.querySelectorAll('.dojo-kata-edit').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.kataId;
       fetch('/api/open', {
