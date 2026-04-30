@@ -1542,6 +1542,7 @@ body.archive-mode .btn-column-add {
 
 /* Sidebar kata item */
 .dojo-kata-item {
+	position: relative;
 	background: var(--surface);
 	border-radius: var(--radius);
 	padding: 10px 12px;
@@ -1553,6 +1554,30 @@ body.archive-mode .btn-column-add {
 
 .dojo-kata-item:hover {
 	box-shadow: var(--shadow-card-hover);
+}
+
+.dojo-kata-edit {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	font-size: 0.75rem;
+	color: var(--text-faint);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 4px;
+	border-radius: 4px;
+	opacity: 0;
+	transition: all var(--transition);
+}
+
+.dojo-kata-item:hover .dojo-kata-edit {
+	opacity: 1;
+}
+
+.dojo-kata-edit:hover {
+	background: var(--surface-active);
+	color: var(--text);
 }
 
 .dojo-kata-name {
