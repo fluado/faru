@@ -174,7 +174,7 @@ async function runKata(kata, kataDir, driver, agentConfig, fns) {
 		// Compose prompt: kata body + sentinel
 		const repoName = path.basename(process.cwd());
 		const sentinelPath = `kata/${kata.id}/${sentinelFile}`;
-		const prompt = `${kata.body}\n\nWhen done, create \`${sentinelPath}\` with content \`done\`.`;
+		const prompt = `${kata.body}\n\nWhen done, touch or re-create \`${sentinelPath}\` with content \`done\`.`;
 
 		// Execute
 		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
