@@ -1325,6 +1325,7 @@ function renderSidebarKata(kataList, sweeps) {
 
     return `
       <div class="dojo-kata-item">
+        <button class="dojo-kata-edit" data-kata-id="${escapeHtml(k.id)}" data-action="edit" title="Edit kata">✎</button>
         <div class="dojo-kata-name">
           <span class="dojo-kata-dot ${dotClass}"></span>
           ${escapeHtml(k.title)}
@@ -1332,7 +1333,6 @@ function renderSidebarKata(kataList, sweeps) {
         <div class="dojo-kata-schedule">${escapeHtml(scheduleText)}</div>
         <div class="dojo-kata-actions">
           <button class="dojo-kata-btn run-now" data-kata-id="${escapeHtml(k.id)}" title="Run now">▶ Run</button>
-          <button class="dojo-kata-btn" data-kata-id="${escapeHtml(k.id)}" data-action="edit" title="Edit kata">✏</button>
         </div>
       </div>
     `;
