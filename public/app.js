@@ -1442,6 +1442,7 @@ document.getElementById('new-kata-form')?.addEventListener('submit', async (e) =
     });
     form.reset();
     fetchKataList();
+    fetchSidebarKata();
   } catch (_) {
     alert('Failed to create kata');
   }
