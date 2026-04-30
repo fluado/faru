@@ -1048,7 +1048,7 @@ function enterDojoView() {
   }
   document.body.classList.add('dojo-mode');
   document.getElementById('dojo-view').style.display = '';
-  document.getElementById('btn-toggle-archive').style.display = 'none';
+  document.getElementById('btn-toggle-archive').style.visibility = 'hidden';
   setActiveTab('dojo');
   fetchSweeps();
   fetchSidebarKata();
@@ -1058,7 +1058,7 @@ function exitDojoView() {
   isDojoView = false;
   document.body.classList.remove('dojo-mode');
   document.getElementById('dojo-view').style.display = 'none';
-  document.getElementById('btn-toggle-archive').style.display = '';
+  document.getElementById('btn-toggle-archive').style.visibility = '';
   setActiveTab('board');
 }
 
