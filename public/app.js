@@ -279,24 +279,7 @@ function openDetail(card) {
       </div>
     `;
   } else {
-    const reportCount = card.files
-      ? card.files.filter((f) => f.toLowerCase().includes('report')).length
-      : 0;
-    if (reportCount > 0) {
-      const totalEstimate = Math.max(reportCount, 3);
-      const pct = Math.min(100, Math.round((reportCount / totalEstimate) * 100));
-      progress.innerHTML = `
-        <div class="detail-progress-label">
-          <span>${reportCount} report${reportCount === 1 ? '' : 's'} completed</span>
-          <span>${pct}%</span>
-        </div>
-        <div class="detail-progress-bar">
-          <div class="detail-progress-fill" style="width:${pct}%"></div>
-        </div>
-      `;
-    } else {
-      progress.innerHTML = '';
-    }
+    progress.innerHTML = '';
   }
 
   // Milestones checklist
