@@ -111,7 +111,8 @@ const IDLE_CHECK_EXPR = `
   const isGenerating = !!stopIcon;
   const editor = document.querySelector('[contenteditable="true"], textarea');
   const isInputDisabled = editor ? (editor.getAttribute('contenteditable') === 'false' || editor.disabled) : false;
-  const isSpinning = Array.from(document.querySelectorAll('.codicon-loading, .loading, [class*="animate-spin"], [class*="spinner"], [class*="loader"]')).some(el => {
+  const spinnerRoot = chatArea || document;
+  const isSpinning = Array.from(spinnerRoot.querySelectorAll('.codicon-loading, .loading, [class*="animate-spin"], [class*="spinner"], [class*="loader"]')).some(el => {
     if (el.offsetParent === null) return false;
     if (el.className.includes('h-3') && el.className.includes('w-3')) return false;
     const p = el.parentElement;
