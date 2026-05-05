@@ -8,6 +8,24 @@ const kata = require("./kata");
 
 const DOCS_ROOT = process.cwd();
 
+function deepMerge(target, source) {
+	for (const key of Object.keys(source)) {
+		if (
+			source[key] &&
+			typeof source[key] === "object" &&
+			!Array.isArray(source[key]) &&
+			target[key] &&
+			typeof target[key] === "object" &&
+			!Array.isArray(target[key])
+		) {
+			deepMerge(target[key], source[key]);
+		} else {
+			target[key] = source[key];
+		}
+	}
+	return target;
+}
+
 function loadConfig() {
 	const configPath = path.join(DOCS_ROOT, "faru.config.json");
 	if (!fs.existsSync(configPath)) {
@@ -31,7 +49,19 @@ function loadConfig() {
 `);
 		process.exit(1);
 	}
-	return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+	const base = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+
+	// Merge machine-local overrides (gitignored)
+	const localPath = path.join(DOCS_ROOT, ".faru.local.json");
+	if (fs.existsSync(localPath)) {
+		try {
+			const local = JSON.parse(fs.readFileSync(localPath, "utf-8"));
+			deepMerge(base, local);
+		} catch (e) {
+			console.error(`⚠  .faru.local.json parse error: ${e.message} — ignoring`);
+		}
+	}
+	return base;
 }
 
 const config = loadConfig();
@@ -1393,9 +1423,13 @@ server.listen(PORT, () => {
 	}
 
 	// Start kata scheduler if dojo and agent are both configured
-	if (kataDir && agentDriver && agentConfig) {
+	// Scheduler only runs when scheduler.enabled is true (set via .faru.local.json)
+	const schedulerEnabled = config.scheduler && config.scheduler.enabled;
+	if (kataDir && agentDriver && agentConfig && schedulerEnabled) {
 		const count = kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
 		log(`🥋 Dojo scheduler started — ${count} kata scheduled`);
 		kata.watchKataDir(kataDir, agentDriver, agentConfig, kataFns);
+	} else if (kataDir && agentDriver && agentConfig) {
+		log(`🥋 Dojo available (manual runs only — enable via .faru.local.json)`);
 	}
 });
