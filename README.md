@@ -271,33 +271,6 @@ Act like a ...
 
 When dispatching a card, you chain one or more skills — each runs in a fresh chat session. The driver interface is pluggable — add your own under `drivers/`.
 
-#### Writing Skills
-
-Faru does not ship with skills. You write them. A skill is a markdown file that tells the agent what to do — and critically, **how to work with faru's file conventions**.
-
-Your agent doesn't know that cards are folders, that reports must be named `PREFIX-N-report.md`, or that frontmatter drives the board. Your skill prompt has to teach it. If you just write "implement this feature," the agent will write code but won't update the card, create a report, or mark anything done.
-
-A minimal skill looks like this:
-
-```markdown
----
-phase: 1
-produces: "*-report.md"
-default: true
----
-
-You are working on a faru card. The card folder and its files are
-provided below.
-
-Do the work described in the card. When you are done:
-1. Write a report to the card folder as `PREFIX-N-report.md`
-   (matching the milestone heading you completed)
-2. Update the card's `status` frontmatter if all milestones are done
-3. Commit your changes
-```
-
-The key insight: **faru is the board, your skills are the workforce.** Faru dispatches the card context to the agent and waits for files to appear. Everything the agent does — what it builds, what it writes, how it reports back — is defined by your skill prompts. Invest time in writing them well.
-
 #### Verification Pass
 
 After each skill completes, faru can send a follow-up prompt in the same session asking the agent to audit its own work. Enable it via the `verify` field:
