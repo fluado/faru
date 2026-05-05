@@ -429,7 +429,7 @@ Only an Antigravity driver ships with faru. The driver interface is simple — c
 <details>
 <summary>My agent runs but doesn't create reports or update the card. What's wrong?</summary>
 
-Your skills need to tell it to. Faru dispatches the card's content to the agent but doesn't inject any instructions about file conventions — that's your skill prompt's job. If your skill just says "implement this feature," the agent will write code and stop. It won't know about `PREFIX-N-report.md` naming, frontmatter fields, or card folder structure unless your prompt explains them. See [Writing Skills](#writing-skills) above.
+Your skills need to tell it to. Faru dispatches card content to the agent but doesn't inject instructions about file conventions. Your skill prompt must teach the agent about `PREFIX-N-report.md` naming, frontmatter fields, and card folder structure.
 
 </details>
 
