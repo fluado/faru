@@ -1515,16 +1515,26 @@ body.archive-mode .btn-column-add {
 	animation: dispatchPulse 1s ease-in-out infinite;
 }
 
-/* Scheduler disabled banner */
-.dojo-scheduler-off {
+/* Scheduler status banners */
+.dojo-scheduler-off,
+.dojo-scheduler-on {
 	font-size: 0.6875rem;
-	color: var(--text-faint);
 	text-align: center;
 	padding: 8px 10px;
 	margin-top: 6px;
-	background: var(--bg);
 	border-radius: 6px;
+}
+
+.dojo-scheduler-off {
+	color: var(--text-faint);
+	background: var(--bg);
 	border: 1px dashed var(--border);
+}
+
+.dojo-scheduler-on {
+	color: var(--green-text);
+	background: var(--green-bg);
+	border: 1px solid transparent;
 }
 
 /* === Dojo === */
@@ -1533,10 +1543,11 @@ body.archive-mode .btn-column-add {
 	display: flex;
 	gap: 20px;
 	padding: 24px 28px;
-	min-height: calc(100vh - 95px);
+	height: calc(100vh - 95px);
 	align-items: flex-start;
 	max-width: 1100px;
 	margin: 0 auto;
+	overflow: hidden;
 }
 
 /* Sidebar */
@@ -1726,6 +1737,10 @@ body.archive-mode .btn-column-add {
 .dojo-main {
 	flex: 1;
 	min-width: 0;
+	overflow-y: auto;
+	max-height: 100%;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
 }
 
 .dojo-main-header {
@@ -1752,6 +1767,7 @@ body.dojo-mode .btn-archive-toggle {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	padding-bottom: 24px;
 }
 
 .dojo-empty {
