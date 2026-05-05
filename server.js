@@ -1397,9 +1397,7 @@ const syncLabel = config.autoSync ? 'ON' : 'OFF';
 const archiveLabel = config.archiveDoneAfterDays
 	? `${config.archiveDoneAfterDays}d`
 	: 'OFF';
-const dojoLabel = kataDir
-	? (config.runKata ? 'ON (scheduler active)' : 'ON (manual only)')
-	: 'OFF';
+const dojoLabel = kataDir && config.runKata ? 'ON' : 'OFF';
 
 // Kata functions — shared between cron scheduler and manual run
 const kataFns = {
