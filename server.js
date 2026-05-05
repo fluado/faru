@@ -601,7 +601,7 @@ const server = http.createServer(async (req, res) => {
 				port: config.port,
 				agentEnabled: !!(agentConfig && agentDriver),
 				dojoEnabled: !!kataDir,
-			dojoSchedulerEnabled: !!(config.scheduler && config.scheduler.enabled),
+				dojoSchedulerEnabled: !!config.runKata,
 			}),
 		);
 		return;
@@ -1397,7 +1397,9 @@ const syncLabel = config.autoSync ? 'ON' : 'OFF';
 const archiveLabel = config.archiveDoneAfterDays
 	? `${config.archiveDoneAfterDays}d`
 	: 'OFF';
-const dojoLabel = kataDir ? 'ON' : 'OFF';
+const dojoLabel = kataDir
+	? (config.runKata ? 'ON (scheduler active)' : 'ON (manual only)')
+	: 'OFF';
 
 // Kata functions — shared between cron scheduler and manual run
 const kataFns = {
@@ -1424,9 +1426,8 @@ server.listen(PORT, () => {
 	}
 
 	// Start kata scheduler if dojo and agent are both configured
-	// Scheduler only runs when scheduler.enabled is true (set via .faru.local.json)
-	const schedulerEnabled = config.scheduler && config.scheduler.enabled;
-	if (kataDir && agentDriver && agentConfig && schedulerEnabled) {
+	// Scheduler only runs when runKata is true (set via .faru.local.json)
+	if (kataDir && agentDriver && agentConfig && config.runKata) {
 		const count = kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
 		log(`🥋 Dojo scheduler started — ${count} kata scheduled`);
 		kata.watchKataDir(kataDir, agentDriver, agentConfig, kataFns);
