@@ -1301,7 +1301,9 @@ function renderSidebarKata(kataList, sweeps) {
 
   // Scheduler status banner
   let schedulerBanner = '';
-  if (!dojoSchedulerEnabled) {
+  if (dojoSchedulerEnabled) {
+    schedulerBanner = '<div class="dojo-scheduler-on">▶ Scheduler active</div>';
+  } else {
     schedulerBanner = '<div class="dojo-scheduler-off">⏸ Scheduler off — manual runs only</div>';
   }
 
