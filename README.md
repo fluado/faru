@@ -360,9 +360,7 @@ To enable it on a specific machine, create a `.faru.local.json` in the project r
 
 ```json
 {
-  "scheduler": {
-    "enabled": true
-  }
+  "runKata": true
 }
 ```
 
