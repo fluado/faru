@@ -350,7 +350,25 @@ summary: 3 findings, 1 critical
 
 The Dojo view (toggle via the header button) shows a timeline of all sweep reports. Click a report to read it, select text and right-click to promote a finding to a card or mute it.
 
-Dojo watches the kata directory for changes — editing a kata file automatically reloads cron schedules. Both `agent` and `scheduler` must be configured for scheduled runs; manual runs are also available from the Manage Kata UI.
+Dojo watches the kata directory for changes — editing a kata file automatically reloads cron schedules. Both `agent` and `scheduler` must be configured for scheduled runs; manual runs are also available from the Dojo UI.
+
+#### Enabling the Scheduler
+
+By default, the kata scheduler is **off** — kata are visible and can be run manually, but cron schedules don't fire. This prevents every machine from running the same scheduled kata.
+
+To enable it on a specific machine, create a `.faru.local.json` in the project root (next to `faru.config.json`):
+
+```json
+{
+  "scheduler": {
+    "enabled": true
+  }
+}
+```
+
+**Add `.faru.local.json` to your `.gitignore`** — this file is machine-specific and should not be committed.
+
+`.faru.local.json` is a general-purpose override file. It deep-merges on top of `faru.config.json`, so you can override any setting per-machine (e.g. a different port or CDP port) without touching the shared config.
 
 ## Creating Cards
 
