@@ -601,6 +601,7 @@ const server = http.createServer(async (req, res) => {
 				port: config.port,
 				agentEnabled: !!(agentConfig && agentDriver),
 				dojoEnabled: !!kataDir,
+			dojoSchedulerEnabled: !!(config.scheduler && config.scheduler.enabled),
 			}),
 		);
 		return;

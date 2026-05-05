@@ -640,6 +640,7 @@ fetch('/api/config')
       startDispatchPolling();
     }
     dojoEnabled = cfg.dojoEnabled || false;
+    dojoSchedulerEnabled = cfg.dojoSchedulerEnabled || false;
     if (dojoEnabled) {
       const dojoTab = document.getElementById('btn-tab-dojo');
       if (dojoTab) dojoTab.style.display = '';
@@ -1014,6 +1015,7 @@ setupDispatchModal();
 // --- Dojo ---
 
 let dojoEnabled = false;
+let dojoSchedulerEnabled = false;
 let isDojoView = false;
 
 function setActiveTab(tab) {
@@ -1297,6 +1299,12 @@ function renderSidebarKata(kataList, sweeps) {
     return;
   }
 
+  // Scheduler status banner
+  let schedulerBanner = '';
+  if (!dojoSchedulerEnabled) {
+    schedulerBanner = '<div class="dojo-scheduler-off">⏸ Scheduler off — manual runs only</div>';
+  }
+
   // Build a map of latest verdict per kata
   const latestVerdict = {};
   for (const s of sweeps) {
@@ -1327,7 +1335,7 @@ function renderSidebarKata(kataList, sweeps) {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('') + schedulerBanner;
 
   // Run button handlers
   container.querySelectorAll('.dojo-kata-btn.run-now').forEach(btn => {
