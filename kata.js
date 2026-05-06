@@ -42,8 +42,9 @@ function scanKata(kataDir) {
 			const raw = fs.readFileSync(path.join(kataDir, f), "utf-8");
 			const { meta, body } = parseFrontmatter(raw);
 			const schedule = meta.schedule || null;
+			const model = meta.model || null;
 			const title = deriveTitle(id);
-			return { id, title, schedule, body, file: f };
+			return { id, title, schedule, model, body, file: f };
 		});
 }
 
@@ -168,8 +169,11 @@ async function runKata(kata, kataDir, driver, agentConfig, fns) {
 		// New session
 		await driver.newSession(agentConfig);
 
-		// Select model if the prompt references a skill with a model
-		// (for kata we don't auto-detect — the prompt is user-controlled)
+		// Select model if the kata declares one in frontmatter
+		if (kata.model && driver.setModel) {
+			fns.log(`🧠 Selecting model: ${kata.model} for kata "${kata.title}"`);
+			await driver.setModel(agentConfig, kata.model);
+		}
 
 		// Compose prompt: kata body + sentinel
 		const repoName = path.basename(process.cwd());
