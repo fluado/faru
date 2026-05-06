@@ -354,7 +354,7 @@ The Dojo view (toggle via the header button) shows a timeline of all sweep repor
 
 Dojo watches the kata directory for changes — editing a kata file automatically reloads cron schedules. Both `agent` and `scheduler` must be configured for scheduled runs; manual runs are also available from the Dojo UI.
 
-#### Enabling the Scheduler
+#### Enabling the Scheduler (experimental)
 
 By default, the kata scheduler is **off** — kata are visible and can be run manually, but cron schedules don't fire. This prevents every machine from running the same scheduled kata.
 
