@@ -390,7 +390,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 - **Archive** — archive cards from the detail view. Toggle the archive view to browse archived cards. Auto-archive sweeps `done` cards older than N days (configurable)
 - **Open in editor** — click any file in the card sidebar to open it in your default editor
 - **Live reload** — edit cards in your editor, board updates instantly
-- **Git sync** — auto-commit on change, push on commit, poll remote every 5s and pull when changed
+- **Git sync** — automatically commits, pushes, and pulls via git when `autoSync` is enabled
 - **Drag & drop** — move cards between columns
 - **Inline editing** — click titles and descriptions to edit in-place
 - **Assignee detection** — reads `git config user.name`, populates assignee dropdowns from existing cards
