@@ -310,6 +310,7 @@ A kata file uses YAML frontmatter for scheduling and a body for the prompt:
 ```yaml
 ---
 schedule: 0 9 * * 1
+model: opus-4.6
 ---
 
 Find all TODO, FIXME, and HACK comments in the codebase.
@@ -320,6 +321,7 @@ Write a prioritized report to kata/todo-sweep/{date}-sweep.md.
 | Frontmatter | Description |
 |---|---|
 | `schedule` | A cron expression (e.g. `0 2 * * 1` = Monday 2am). Set to `paused` to disable |
+| `model` | Preferred model for this kata (driver-specific identifier, same values as skill `model`). If omitted, the currently active model in the IDE is used |
 
 Kata files support an `## Ignore` section — when you mute a finding from the sweep report UI (select text → right-click → Mute), it appends to this section. The agent sees the ignore list on subsequent runs:
 
@@ -438,7 +440,7 @@ No. We ship updates to `main` when something is ready. There are no stability gu
 <details>
 <summary>Can I use Agent Dispatch with Cursor, Claude Code, Gemini CLI, etc.?</summary>
 
-Only an Antigravity driver ships with faru. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, and `abort`, then set `"driver": "your-driver"` in the config. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
+Only an Antigravity driver ships with faru. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, `abort`, and optionally `setModel` and `releaseWorkspace`, then set `"driver": "your-driver"` in the config. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
 
 </details>
 
