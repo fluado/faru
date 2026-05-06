@@ -447,49 +447,101 @@ const MODEL_MAP = {
 };
 
 async function selectModel(port, modelId) {
-	if (!modelId || !MODEL_MAP[modelId]) return;
-	const target = await getPinnedTarget(port);
-	if (!target) return;
-
+	if (!modelId) return;
+	if (!MODEL_MAP[modelId]) {
+		console.log(`  [model] Unknown model ID "${modelId}" — known: ${Object.keys(MODEL_MAP).join(", ")}`);
+		return;
+	}
 	const needle = MODEL_MAP[modelId];
-	try {
-		const client = await CDP({ target: target.webSocketDebuggerUrl });
-		const { Runtime } = client;
-		await Runtime.enable();
 
-		// Check if already selected
-		const currentCheck = await Runtime.evaluate({
-			expression: `(() => {
+	// Retry loop — the model selector DOM may not be ready right after newSession
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const target = await getPinnedTarget(port);
+		if (!target) {
+			await sleep(1000);
+			continue;
+		}
+
+		try {
+			const client = await CDP({ target: target.webSocketDebuggerUrl });
+			const { Runtime } = client;
+			await Runtime.enable();
+
+			// Check if already selected
+			const currentCheck = await Runtime.evaluate({
+				expression: `(() => {
   const active = document.querySelector('.flex.min-w-0.max-w-full.cursor-pointer');
   return active ? active.textContent.trim() : '';
 })()`,
-			returnByValue: true,
-		});
-		const current = currentCheck.result?.value || "";
-		if (current.includes(needle)) {
-			await client.close();
-			return; // already selected
-		}
+				returnByValue: true,
+			});
+			const current = currentCheck.result?.value || "";
+			if (current.includes(needle)) {
+				await client.close();
+				return; // already selected
+			}
 
-		// Click the model selector to open dropdown, then click the target model
-		await Runtime.evaluate({
-			expression: `(() => {
+			// If we couldn't find the selector at all, wait and retry
+			if (!current) {
+				await client.close();
+				await sleep(1000);
+				continue;
+			}
+
+			// Click the model selector to open dropdown
+			await Runtime.evaluate({
+				expression: `(() => {
   const selector = document.querySelector('.flex.min-w-0.max-w-full.cursor-pointer');
   if (selector) selector.click();
 })()`,
-		});
-		await sleep(500);
+			});
+			await sleep(600);
 
-		await Runtime.evaluate({
-			expression: `(() => {
+			// Click the target model in the dropdown
+			const clickResult = await Runtime.evaluate({
+				expression: `(() => {
   const btns = Array.from(document.querySelectorAll('button'));
   const target = btns.find(b => b.textContent.includes('${needle}') && b.className.includes('px-2'));
-  if (target) target.click();
+  if (target) { target.click(); return true; }
+  return false;
 })()`,
-		});
-		await sleep(500);
-		await client.close();
-	} catch (_) {}
+				returnByValue: true,
+			});
+			await sleep(500);
+
+			if (!clickResult.result?.value) {
+				// Dropdown opened but model button not found — close dropdown and retry
+				await Runtime.evaluate({
+					expression: `document.body.click()`,
+				});
+				await client.close();
+				console.log(`  [model] Attempt ${attempt + 1}: dropdown opened but "${needle}" not found — retrying`);
+				await sleep(1000);
+				continue;
+			}
+
+			// Verify the switch actually worked
+			const verifyCheck = await Runtime.evaluate({
+				expression: `(() => {
+  const active = document.querySelector('.flex.min-w-0.max-w-full.cursor-pointer');
+  return active ? active.textContent.trim() : '';
+})()`,
+				returnByValue: true,
+			});
+			await client.close();
+
+			const after = verifyCheck.result?.value || "";
+			if (after.includes(needle)) {
+				return; // success
+			}
+			console.log(`  [model] Attempt ${attempt + 1}: selection did not take effect (active: "${after}")`);
+			await sleep(1000);
+		} catch (e) {
+			console.log(`  [model] Attempt ${attempt + 1} error: ${e.message}`);
+			await sleep(1000);
+		}
+	}
+	console.log(`  [model] Failed to select "${needle}" after 5 attempts — proceeding with current model`);
 }
 
 async function stopAgent(port) {
