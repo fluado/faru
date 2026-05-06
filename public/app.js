@@ -645,6 +645,11 @@ fetch('/api/config')
       const dojoTab = document.getElementById('btn-tab-dojo');
       if (dojoTab) dojoTab.style.display = '';
     }
+    // Apply initial route from URL path
+    const initialView = viewFromPath();
+    if (initialView !== 'board' && (initialView !== 'dojo' || dojoEnabled)) {
+      switchToView(initialView, false);
+    }
   })
   .catch(() => {});
 
