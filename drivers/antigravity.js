@@ -618,7 +618,7 @@ module.exports = {
 	async newSession(config) {
 		activeWorkspacePattern = config.workspacePattern || null;
 		await triggerNewChat(config.cdpPort);
-		await sleep(2000);
+		await sleep(3000);
 	},
 
 	async setModel(config, modelId) {
