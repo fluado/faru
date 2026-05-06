@@ -1224,6 +1224,12 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
+	// --- SPA Routes (history-mode) ---
+	if (url.pathname === "/board" || url.pathname === "/dojo") {
+		serveStatic(res, path.join(__dirname, "public", "index.html"));
+		return;
+	}
+
 	// --- Static Files ---
 	const filePath = url.pathname === "/" ? "/index.html" : url.pathname;
 	serveStatic(res, path.join(__dirname, "public", filePath));

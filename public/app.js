@@ -1023,7 +1023,7 @@ function setActiveTab(tab) {
   document.getElementById(`btn-tab-${tab}`)?.classList.add('active');
 }
 
-function switchToView(view) {
+function switchToView(view, pushState = true) {
   // Reset all view states
   isDojoView = false;
   document.body.classList.remove('dojo-mode');
@@ -1047,6 +1047,12 @@ function switchToView(view) {
 
   setActiveTab(view);
   fetchCards();
+
+  // Update URL without reload
+  const target = view === 'board' ? '/' : `/${view}`;
+  if (pushState && window.location.pathname !== target) {
+    history.pushState({ view }, '', target);
+  }
 }
 
 document.getElementById('btn-tab-board')?.addEventListener('click', () => {
@@ -1056,6 +1062,19 @@ document.getElementById('btn-tab-board')?.addEventListener('click', () => {
 document.getElementById('btn-tab-dojo')?.addEventListener('click', () => {
   switchToView('dojo');
 });
+
+// Handle browser back/forward
+window.addEventListener('popstate', (e) => {
+  const view = e.state?.view || viewFromPath();
+  switchToView(view, false);
+});
+
+// Resolve initial view from URL path
+function viewFromPath() {
+  const p = window.location.pathname;
+  if (p === '/dojo') return 'dojo';
+  return 'board';
+}
 
 // --- Dojo Timeline ---
 
