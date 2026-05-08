@@ -220,9 +220,9 @@ Create a `faru.config.json` in your project root:
 | `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
 | `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
 
-### Agent Dispatch — Antigravity (optional)
+### Agent Dispatch — Antigravity / Cursor CDP (optional)
 
-faru ships with a driver for [Antigravity](https://antigravity.dev) that dispatches cards to the IDE's built-in agent via Chrome DevTools Protocol. Launch Antigravity with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
+faru ships with a CDP driver (`driver: "antigravity"`) that dispatches cards to the IDE's built-in agent via Chrome DevTools Protocol. It supports [Antigravity](https://antigravity.dev) and Cursor (with CDP enabled). Launch your IDE with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
 
 ```json
 {
