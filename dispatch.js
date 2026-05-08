@@ -19,6 +19,7 @@ let state = {
 	currentIndex: 0,
 	startedAt: null,
 	log: [], // [{ skill, status, duration, message }, ...]
+	liveEvent: null,
 };
 
 function getState() {
@@ -243,6 +244,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		currentIndex: 0,
 		startedAt: new Date().toISOString(),
 		log: [],
+		liveEvent: null,
 	};
 
 	// Move card to WIP
@@ -300,6 +302,11 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			__cardSlug: card.slug,
 			__backlogDir: fns.backlogDir,
 			skills: fns.skillsDir,
+			__onEvent: (eventText) => {
+				if (!eventText) return;
+				state.liveEvent = `[${step.skill}] ${eventText}`;
+				fns.notifyReload();
+			},
 		};
 
 		// Select model for this skill (if driver supports it)
@@ -422,6 +429,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		currentIndex: 0,
 		startedAt: null,
 		log: [],
+		liveEvent: null,
 	};
 
 	fns.notifyReload();
@@ -438,6 +446,7 @@ function abortDispatch() {
 		currentIndex: 0,
 		startedAt: null,
 		log: [],
+		liveEvent: null,
 	};
 	return slug;
 }

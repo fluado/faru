@@ -735,11 +735,13 @@ function updateDispatchUI(s) {
   if (s.status === 'running') {
     const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
     btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})`;
+    btn.title = s.liveEvent || `Running ${skillName}`;
     btn.classList.add('dispatch-running');
     btn.disabled = false;
     btn.onclick = abortDispatch;
   } else {
     btn.textContent = '🤖 Dispatch to Agent';
+    btn.title = '';
     btn.classList.remove('dispatch-running');
     btn.disabled = false;
     btn.onclick = null; // handled by setupDispatchModal

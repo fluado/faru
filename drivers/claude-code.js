@@ -267,6 +267,13 @@ module.exports = {
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		session.child = child;
+		const onEvent = typeof config?.__onEvent === "function" ? config.__onEvent : null;
+		const emitEvent = (text) => {
+			if (!onEvent) return;
+			try {
+				onEvent(text);
+			} catch (_) {}
+		};
 
 		let killedByTimeout = false;
 		let stderr = "";
@@ -290,16 +297,23 @@ module.exports = {
 				if (sid) session.claudeSessionId = sid;
 			}
 			if (type.includes("tool_use") || type.includes("tool_result")) {
+				const toolName = evt?.name || evt?.tool || evt?.tool_name || "unknown";
 				toolEvents.push({
 					type,
-					tool: evt?.name || evt?.tool || evt?.tool_name || "unknown",
+					tool: toolName,
 				});
+				emitEvent(`${type}: ${toolName}`);
 			}
 			if (type === "assistant" || type.includes("assistant")) {
-				assistantText += extractTextDelta(evt);
+				const delta = extractTextDelta(evt);
+				assistantText += delta;
+				if (delta.trim()) {
+					emitEvent(`assistant: ${delta.trim().slice(0, 120)}`);
+				}
 			}
 			if (type === "result" || type.includes("/result")) {
 				finalEvent = evt;
+				emitEvent("result event received");
 			}
 		});
 

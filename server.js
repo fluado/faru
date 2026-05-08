@@ -1065,6 +1065,7 @@ const server = http.createServer(async (req, res) => {
 			chainLength: s.chain.length,
 			startedAt: s.startedAt,
 			log: s.log,
+			liveEvent: s.liveEvent || null,
 		}));
 		return;
 	}
