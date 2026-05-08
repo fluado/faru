@@ -18,12 +18,27 @@ const http = require("http");
 let activeWorkspacePattern = null;
 let pinnedTarget = null; // locked to one workspace for the duration of a chain
 
+function isCursorTarget(target) {
+	const url = (target?.url || "").toLowerCase();
+	const title = (target?.title || "").toLowerCase();
+	return (
+		(url.includes("vscode-file://") && url.includes("workbench/workbench.html")) ||
+		title.includes("(workspace)")
+	);
+}
+
+function getTargetPlatform(target) {
+	return isCursorTarget(target) ? "cursor" : "antigravity";
+}
+
 function httpGet(url) {
 	return new Promise((resolve, reject) => {
 		http
 			.get(url, (res) => {
 				let data = "";
-				res.on("data", (chunk) => (data += chunk));
+				res.on("data", (chunk) => {
+					data += chunk;
+				});
 				res.on("end", () => resolve(data));
 			})
 			.on("error", reject);
@@ -85,6 +100,10 @@ const CHAT_EXTRACT_EXPR = `
 (function() {
   let t = "";
   try {
+    const cursorContainer = document.querySelector('.composer-messages-container');
+    if (cursorContainer) {
+      t = cursorContainer.innerText || cursorContainer.textContent || "";
+    }
     const c = document.querySelector('.flex.w-full.grow.flex-col.overflow-hidden, #conversation, #chat, .interactive-session');
     if (c) {
       const btns = Array.from(c.querySelectorAll('button')).filter(b => b.innerText && b.innerText.includes('Thought for'));
@@ -106,17 +125,23 @@ const CHAT_EXTRACT_EXPR = `
 // DOM expression to check if the agent is idle
 const IDLE_CHECK_EXPR = `
 (function() {
-  const chatArea = document.querySelector('#conversation, #chat, #cascade');
-  const stopIcon = chatArea ? chatArea.querySelector("svg.lucide-square, [data-tooltip-id*='cancel']") : null;
-  const isGenerating = !!stopIcon;
-  const editor = document.querySelector('[contenteditable="true"], textarea');
-  const isInputDisabled = editor ? (editor.getAttribute('contenteditable') === 'false' || editor.disabled) : false;
-  const spinnerRoot = chatArea || document;
+  const antigravityChatArea = document.querySelector('#conversation, #chat, #cascade');
+  const antigravityStopIcon = antigravityChatArea ? antigravityChatArea.querySelector("svg.lucide-square, [data-tooltip-id*='cancel']") : null;
+  const cursorHasComposer = !!document.querySelector('.composer-messages-container, .aislash-editor-input, .composer-input-blur-wrapper');
+  const cursorStopButton = document.querySelector('button[aria-label*="Stop command" i], .ui-shell-tool-call__glass-stop, .send-with-mode .codicon-debug-stop');
+  const isGenerating = !!antigravityStopIcon || !!cursorStopButton;
+  const cursorEditor = document.querySelector('.composer-input-blur-wrapper .aislash-editor-input[contenteditable="true"], .aislash-editor-input[contenteditable="true"]');
+  const antigravityEditor = document.querySelector('.interactive-input-editor textarea, #conversation textarea, #chat textarea, .chat-input textarea');
+  const editor = cursorEditor || antigravityEditor;
+  const isInputDisabled = editor ? (editor.getAttribute('contenteditable') === 'false' || editor.disabled || editor.classList.contains('aislash-editor-input-readonly')) : false;
+  const spinnerRoot = antigravityChatArea || document;
   const isSpinning = Array.from(spinnerRoot.querySelectorAll('.codicon-loading, .loading, [class*="animate-spin"], [class*="spinner"], [class*="loader"]')).some(el => {
     if (el.offsetParent === null) return false;
-    if (el.className.includes('h-3') && el.className.includes('w-3')) return false;
+    const className = String(el.className || '');
+    if (className.includes('h-3') && className.includes('w-3')) return false;
     const p = el.parentElement;
-    if (p && (p.className.includes('opacity-') || p.className.includes('hidden'))) return false;
+    const parentClassName = String(p?.className || '');
+    if (p && (parentClassName.includes('opacity-') || parentClassName.includes('hidden'))) return false;
     return true;
   });
   const aaActive = !!window.__AA_BOT_OBSERVER_ACTIVE && !window.__AA_BOT_PAUSED;
@@ -126,8 +151,11 @@ const IDLE_CHECK_EXPR = `
     const btns = Array.from(document.querySelectorAll('button')).filter(b => b.offsetParent !== null);
     hasPending = btns.some(b => { const x = (b.textContent||'').trim().toLowerCase(); return texts.some(t => x === t || x.startsWith(t + ' ')); });
   }
+  const cursorPending = !!document.querySelector('button[aria-label*="Run" i], button[aria-label*="Continue" i], .composer-bar-input-buttons button');
+  hasPending = hasPending || cursorPending;
   const isIdle = !isGenerating && !isInputDisabled && !isSpinning && !hasPending;
-  const hasChat = !!document.querySelector('#conversation, #chat, #cascade, .chat-input, .interactive-input-editor');
+  const hasAntigravityChat = !!document.querySelector('#conversation, #chat, #cascade, .chat-input, .interactive-input-editor');
+  const hasChat = hasAntigravityChat || cursorHasComposer;
   return { hasChat, isGenerating, isIdle, isSpinning, hasPending };
 })()
 `;
@@ -211,22 +239,40 @@ async function sendViaCDP(text, port) {
 (async function() {
   try {
     const escapedText = ${JSON.stringify(text)};
-    const editors = [...document.querySelectorAll('.interactive-input-editor textarea, #conversation textarea, #chat textarea, .chat-input textarea, [aria-label*="chat input" i] textarea, [contenteditable="true"]')]
+    const cursorEditor = document.querySelector('.composer-input-blur-wrapper .aislash-editor-input[contenteditable="true"], .aislash-editor-input[contenteditable="true"]');
+    const editors = [...document.querySelectorAll('.interactive-input-editor textarea, #conversation textarea, #chat textarea, .chat-input textarea, [aria-label*="chat input" i] textarea')]
       .filter(el => !el.className.includes('xterm'));
-    const editor = editors.at(-1);
+    const editor = cursorEditor || editors.at(-1);
     if (!editor) return { found: false, reason: "no_editor" };
     editor.focus();
-    try { document.execCommand("selectAll", false, null); document.execCommand("delete", false, null); } catch(_) {}
-    let inserted = false;
-    try { inserted = !!document.execCommand("insertText", false, escapedText); } catch(_) {}
-    if (!inserted) {
+    if (editor.getAttribute && editor.getAttribute('contenteditable') === 'true') {
+      const sel = window.getSelection();
+      if (sel) {
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      let inserted = false;
+      try { inserted = !!document.execCommand("insertText", false, escapedText); } catch(_) {}
+      if (!inserted) editor.textContent = escapedText;
+      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: escapedText }));
+    } else {
+      try { document.execCommand("selectAll", false, null); document.execCommand("delete", false, null); } catch(_) {}
+      let inserted = false;
+      try { inserted = !!document.execCommand("insertText", false, escapedText); } catch(_) {}
+      if (!inserted) {
       if (editor.tagName === 'TEXTAREA') {
         const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
         if (setter) setter.call(editor, escapedText); else editor.value = escapedText;
       } else { editor.textContent = escapedText; }
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: escapedText }));
+      }
     }
     await new Promise(r => setTimeout(r, 150));
+    const cursorStopVisible = !!document.querySelector('button[aria-label*="Stop command" i], .ui-shell-tool-call__glass-stop, .send-with-mode .codicon-debug-stop');
+    const cursorSubmit = !cursorStopVisible ? document.querySelector('.send-with-mode button:not([disabled]), .composer-bar-input-buttons button:not([disabled]), button[aria-label*="Send" i]:not([disabled])') : null;
+    if (cursorSubmit) { setTimeout(() => cursorSubmit.click(), 10); return { found: true, method: 'cursor-button' }; }
     const submit = document.querySelector("svg.lucide-arrow-right, svg[class*='arrow-right'], svg[class*='send']")?.closest("button");
     if (submit && !submit.disabled) { setTimeout(() => submit.click(), 10); return { found: true, method: 'button' }; }
     setTimeout(() => {
@@ -242,7 +288,7 @@ async function sendViaCDP(text, port) {
 			});
 
 			const val = res?.result?.value;
-			if (val && val.found) {
+			if (val?.found) {
 				await sleep(50);
 				try {
 					await Input.dispatchKeyEvent({
@@ -307,7 +353,7 @@ async function waitForIdle(port, timeoutMs) {
 				const val = check?.result?.value;
 				await client.close();
 
-				if (val && val.hasChat) {
+				if (val?.hasChat) {
 					if (val.isIdle && !val.isGenerating) {
 						idleCount++;
 						if (idleCount >= 4) return true;
@@ -357,7 +403,7 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 					const val = check?.result?.value;
 					await client.close();
 
-					if (val && val.hasChat) {
+					if (val?.hasChat) {
 						if (val.isIdle && !val.isGenerating) {
 							idleCount++;
 							if (idleCount >= 3) {
@@ -391,7 +437,45 @@ async function triggerNewChat(port) {
 
 	try {
 		const client = await CDP({ target: target.webSocketDebuggerUrl });
-		const { Input } = client;
+		const { Input, Runtime } = client;
+		await Runtime.enable();
+
+		if (getTargetPlatform(target) === "cursor") {
+			const clickResult = await Runtime.evaluate({
+				expression: `(() => {
+  const icon = document.querySelector('a[aria-label^="New Agent"], .codicon-add-two');
+  const button = icon ? icon.closest('a, button') : null;
+  if (!button) return false;
+  button.click();
+  return true;
+})()`,
+				returnByValue: true,
+			});
+			if (clickResult?.result?.value) {
+				await client.close();
+				return true;
+			}
+
+			// Fallback: Cmd+N opens a new agent in Cursor.
+			await Input.dispatchKeyEvent({
+				type: "keyDown",
+				key: "n",
+				code: "KeyN",
+				windowsVirtualKeyCode: 78,
+				nativeVirtualKeyCode: 78,
+				modifiers: 4, // Meta
+			});
+			await Input.dispatchKeyEvent({
+				type: "keyUp",
+				key: "n",
+				code: "KeyN",
+				windowsVirtualKeyCode: 78,
+				nativeVirtualKeyCode: 78,
+				modifiers: 4,
+			});
+			await client.close();
+			return true;
+		}
 
 		// Step 1: Cmd+E — focus/open the agent panel
 		await Input.dispatchKeyEvent({
@@ -453,17 +537,22 @@ async function selectModel(port, modelId) {
 		return;
 	}
 	const needle = MODEL_MAP[modelId];
+	const target = await getPinnedTarget(port);
+	if (target && getTargetPlatform(target) === "cursor") {
+		console.log("  [model] Cursor target detected — skipping model selection (not implemented for Cursor UI)");
+		return;
+	}
 
 	// Retry loop — the model selector DOM may not be ready right after newSession
 	for (let attempt = 0; attempt < 5; attempt++) {
-		const target = await getPinnedTarget(port);
-		if (!target) {
+		const retryTarget = await getPinnedTarget(port);
+		if (!retryTarget) {
 			await sleep(1000);
 			continue;
 		}
 
 		try {
-			const client = await CDP({ target: target.webSocketDebuggerUrl });
+			const client = await CDP({ target: retryTarget.webSocketDebuggerUrl });
 			const { Runtime } = client;
 			await Runtime.enable();
 
@@ -608,7 +697,8 @@ module.exports = {
 					});
 					await client.close();
 					const val = check?.result?.value;
-					if (val && val.hasChat && val.isIdle) return true;
+					if (val?.hasChat && val.isIdle) return true;
+					if (isCursorTarget(target) && val?.hasChat) return true;
 				} catch (_) {}
 			}
 		} catch (_) {}
