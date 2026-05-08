@@ -233,6 +233,8 @@ function formatDuration(ms) {
 
 async function runDispatch(card, chain, driver, agentConfig, fns) {
 	// fns: { addComment, updateCard, skillsDir, log, notifyReload }
+	const dispatchActor = agentConfig?.commentAuthor
+		|| (agentConfig?.driver === "cursor" ? "cursor-agent" : "faru-agent");
 
 	state = {
 		status: "running",
@@ -249,7 +251,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 	} catch (_) {}
 
 	const chainNames = chain.map((s) => s.skill.replace(/-/g, " ")).join(" → ");
-	fns.addComment(card.slug, `🚀 Dispatch started — ${chainNames}`, "faru-agent");
+	fns.addComment(card.slug, `🚀 Dispatch started — ${chainNames}`, dispatchActor);
 	fns.notifyReload();
 
 	const totalStart = Date.now();
@@ -279,7 +281,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			fns.addComment(
 				card.slug,
 				`❌ ${step.skill} failed — could not start new session: ${e.message}`,
-				"faru-agent",
+				dispatchActor,
 			);
 			fns.notifyReload();
 			return;
@@ -336,7 +338,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 				fns.addComment(
 					card.slug,
 					`⚠️ ${step.skill} verification pass timed out — results may be incomplete`,
-					"faru-agent",
+					dispatchActor,
 				);
 			} else {
 				fns.log(`🔍 [${i + 1}/${chain.length}] Verification pass completed for ${step.skill}`);
@@ -359,13 +361,13 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 
 		if (result.success) {
 			fns.log(`✅ [${i + 1}/${chain.length}] ${step.skill} completed (${duration})`);
-			fns.addComment(card.slug, `✅ ${step.skill} completed (${duration})`, "faru-agent");
+			fns.addComment(card.slug, `✅ ${step.skill} completed (${duration})`, dispatchActor);
 		} else {
 			fns.log(`❌ [${i + 1}/${chain.length}] ${step.skill} failed (${duration})`);
 			fns.addComment(
 				card.slug,
 				`❌ ${step.skill} failed after ${duration}: ${result.output.substring(0, 200)}`,
-				"faru-agent",
+				dispatchActor,
 			);
 			state.status = "error";
 			if (driver.releaseWorkspace) driver.releaseWorkspace();
@@ -381,7 +383,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 	fns.addComment(
 		card.slug,
 		`🎉 All skills completed (${totalDuration}) — ${chainNames}`,
-		"faru-agent",
+		dispatchActor,
 	);
 	fns.log(`🎉 Dispatch complete: ${card.slug} (${totalDuration})`);
 

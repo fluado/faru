@@ -401,20 +401,77 @@ async function triggerNewChat(port) {
 		if (getTargetPlatform(target) === "cursor") {
 			const clickResult = await Runtime.evaluate({
 				expression: `(() => {
-  const icon = document.querySelector('a[aria-label^="New Agent"], .codicon-add-two');
-  const button = icon ? icon.closest('a, button') : null;
-  if (!button) return false;
-  button.click();
-  return true;
+  const norm = (v) => String(v || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+  const isNewAgentControl = (el) => {
+    const label = norm(el.getAttribute('aria-label'));
+    const title = norm(el.getAttribute('title'));
+    const tooltip = norm(el.getAttribute('data-tooltip') || el.getAttribute('data-tooltip-text') || el.getAttribute('data-title'));
+    const text = norm(el.textContent);
+    const haystack = [label, title, tooltip, text].join(' ');
+    return haystack.includes('new agent');
+  };
+  const candidates = Array.from(document.querySelectorAll('a, button, [role="button"]'))
+    .filter(el => el.offsetParent !== null)
+    .filter(isNewAgentControl);
+  const primary = candidates[0];
+  if (!primary) return { clicked: false, method: 'dom', reason: 'new-agent-control-not-found' };
+  primary.click();
+  return { clicked: true, method: 'dom' };
 })()`,
 				returnByValue: true,
 			});
-			if (clickResult?.result?.value) {
+			if (clickResult?.result?.value?.clicked) {
 				await client.close();
 				return true;
 			}
 
-			// Fallback: Cmd+N opens a new agent in Cursor.
+			// Fallback #1: Command Palette -> New Agent
+			await Input.dispatchKeyEvent({
+				type: "keyDown",
+				key: "P",
+				code: "KeyP",
+				windowsVirtualKeyCode: 80,
+				nativeVirtualKeyCode: 80,
+				modifiers: 4 | 8, // Meta + Shift
+			});
+			await Input.dispatchKeyEvent({
+				type: "keyUp",
+				key: "P",
+				code: "KeyP",
+				windowsVirtualKeyCode: 80,
+				nativeVirtualKeyCode: 80,
+				modifiers: 4 | 8,
+			});
+			await sleep(300);
+			await Input.insertText({ text: "new agent" });
+			await sleep(300);
+			await Input.dispatchKeyEvent({
+				type: "keyDown",
+				key: "Enter",
+				code: "Enter",
+				windowsVirtualKeyCode: 13,
+				nativeVirtualKeyCode: 13,
+			});
+			await Input.dispatchKeyEvent({
+				type: "keyUp",
+				key: "Enter",
+				code: "Enter",
+				windowsVirtualKeyCode: 13,
+				nativeVirtualKeyCode: 13,
+			});
+			await sleep(500);
+			const commandPaletteResult = await Runtime.evaluate({
+				expression: `(() => {
+  return !!document.querySelector('.composer-messages-container, .aislash-editor-input, .composer-input-blur-wrapper');
+})()`,
+				returnByValue: true,
+			});
+			if (commandPaletteResult?.result?.value) {
+				await client.close();
+				return true;
+			}
+
+			// Fallback #2: Cmd+N opens a new agent in Cursor.
 			await Input.dispatchKeyEvent({
 				type: "keyDown",
 				key: "n",
@@ -431,8 +488,15 @@ async function triggerNewChat(port) {
 				nativeVirtualKeyCode: 78,
 				modifiers: 4,
 			});
+			await sleep(500);
+			const keyboardResult = await Runtime.evaluate({
+				expression: `(() => {
+  return !!document.querySelector('.composer-messages-container, .aislash-editor-input, .composer-input-blur-wrapper');
+})()`,
+				returnByValue: true,
+			});
 			await client.close();
-			return true;
+			return !!keyboardResult?.result?.value;
 		}
 
 		// Step 1: Cmd+E — focus/open the agent panel
@@ -665,7 +729,10 @@ module.exports = {
 
 	async newSession(config) {
 		activeWorkspacePattern = config.workspacePattern || null;
-		await triggerNewChat(config.cdpPort);
+		const started = await triggerNewChat(config.cdpPort);
+		if (!started) {
+			throw new Error("Unable to open a new agent session in Cursor via CDP");
+		}
 		await sleep(3000);
 	},
 
