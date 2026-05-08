@@ -328,48 +328,6 @@ async function sendViaCDP(text, port) {
 	throw new Error(`CDP send failed: ${errors.join(" | ")}`);
 }
 
-async function waitForIdle(port, timeoutMs) {
-	const start = Date.now();
-	let idleCount = 0;
-
-	while (Date.now() - start < timeoutMs) {
-		let targets;
-		try {
-			targets = await resolveTargets(port);
-		} catch (_) {
-			await sleep(3000);
-			continue;
-		}
-
-		for (const target of targets) {
-			try {
-				const client = await CDP({ target: target.webSocketDebuggerUrl });
-				const { Runtime } = client;
-				await Runtime.enable();
-				const check = await Runtime.evaluate({
-					expression: IDLE_CHECK_EXPR,
-					returnByValue: true,
-				});
-				const val = check?.result?.value;
-				await client.close();
-
-				if (val?.hasChat) {
-					if (val.isIdle && !val.isGenerating) {
-						idleCount++;
-						if (idleCount >= 4) return true;
-					} else {
-						idleCount = 0;
-					}
-					break;
-				}
-			} catch (_) {}
-		}
-
-		await sleep(2000);
-	}
-	return false;
-}
-
 async function waitForCompletion(port, timeoutMs, sentinelPath) {
 	const fs = require("fs");
 	const start = Date.now();

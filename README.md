@@ -222,12 +222,16 @@ Create a `faru.config.json` in your project root:
 
 ### Agent Dispatch — Antigravity / Cursor CDP (optional)
 
-faru ships with a CDP driver (`driver: "antigravity"`) that dispatches cards to the IDE's built-in agent via Chrome DevTools Protocol. It supports [Antigravity](https://antigravity.dev) and Cursor (with CDP enabled). Launch your IDE with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
+faru ships with CDP drivers that dispatch cards to the IDE's built-in agent via Chrome DevTools Protocol:
+- `driver: "antigravity"` for [Antigravity](https://antigravity.dev)
+- `driver: "cursor"` for Cursor (with CDP enabled)
+
+Launch your IDE with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
 
 ```json
 {
   "agent": {
-    "driver": "antigravity",
+    "driver": "cursor",
     "skills": "./skills",
     "cdpPort": 9333,
     "timeoutMinutes": 15,
@@ -238,11 +242,11 @@ faru ships with a CDP driver (`driver: "antigravity"`) that dispatches cards to 
 
 | Field | Description |
 |---|---|
-| `driver` | Must be `antigravity` |
+| `driver` | `antigravity` (Antigravity) or `cursor` (Cursor) |
 | `skills` | Path to a directory of skill markdown files, relative to project root |
-| `cdpPort` | The `--remote-debugging-port` Antigravity was launched with |
+| `cdpPort` | The `--remote-debugging-port` your IDE was launched with |
 | `timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
-| `workspacePattern` | Substring to match against Antigravity window titles when selecting a target |
+| `workspacePattern` | Optional title substring to prefer a specific IDE window target |
 | `verify` | `true` for a generic audit prompt, or a custom prompt string. Omit to disable |
 
 Skills are markdown files in the skills directory. Each skill can specify behaviour via YAML frontmatter:
