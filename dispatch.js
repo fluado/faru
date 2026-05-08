@@ -203,7 +203,7 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 	}
 
 	// User-provided per-skill context
-	if (step.context && step.context.trim()) {
+	if (step.context?.trim()) {
 		parts.push(step.context.trim());
 	}
 
