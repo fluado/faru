@@ -294,6 +294,13 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		try { fs.unlinkSync(sentinelAbsPath); } catch (_) {}
 
 		const prompt = composePrompt(step, card, state.log, fns.skillsDir, sentinelPath);
+		const executeConfig = {
+			...agentConfig,
+			__skillId: step.skill,
+			__cardSlug: card.slug,
+			__backlogDir: fns.backlogDir,
+			skills: fns.skillsDir,
+		};
 
 		// Select model for this skill (if driver supports it)
 		if (driver.setModel) {
@@ -304,7 +311,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			}
 		}
 
-		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
+		const result = await driver.execute(prompt, executeConfig, sentinelAbsPath);
 
 		if (result.success && agentConfig.verify) {
 			// ---------------------------------------------------------------
@@ -329,7 +336,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 
 			const verifyResult = await driver.execute(
 				verifyPrompt,
-				agentConfig,
+				executeConfig,
 				sentinelAbsPath,
 			);
 
@@ -357,11 +364,29 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			durationFormatted: duration,
 			message: result.success ? "" : result.output,
 			producedFiles,
+			cost: result.cost ?? null,
+			durationMs: result.durationMs ?? null,
+			turns: result.turns ?? null,
 		});
 
 		if (result.success) {
 			fns.log(`✅ [${i + 1}/${chain.length}] ${step.skill} completed (${duration})`);
-			fns.addComment(card.slug, `✅ ${step.skill} completed (${duration})`, dispatchActor);
+			const details = [];
+			if (typeof result.cost === "number") {
+				details.push(`cost $${result.cost.toFixed(4)}`);
+			}
+			if (typeof result.durationMs === "number") {
+				details.push(`duration ${Math.round(result.durationMs)}ms`);
+			}
+			if (typeof result.turns === "number") {
+				details.push(`${result.turns} turns`);
+			}
+			const suffix = details.length > 0 ? ` — ${details.join(", ")}` : "";
+			fns.addComment(
+				card.slug,
+				`✅ ${step.skill} completed (${duration})${suffix}`,
+				dispatchActor,
+			);
 		} else {
 			fns.log(`❌ [${i + 1}/${chain.length}] ${step.skill} failed (${duration})`);
 			fns.addComment(

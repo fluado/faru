@@ -220,11 +220,12 @@ Create a `faru.config.json` in your project root:
 | `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
 | `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
 
-### Agent Dispatch — Antigravity / Cursor CDP (optional)
+### Agent Dispatch — Antigravity / Cursor / Claude Code (optional)
 
 faru ships with CDP drivers that dispatch cards to the IDE's built-in agent via Chrome DevTools Protocol:
 - `driver: "antigravity"` for [Antigravity](https://antigravity.dev)
 - `driver: "cursor"` for Cursor (with CDP enabled)
+- `driver: "claude-code"` for [Claude Code CLI](https://www.npmjs.com/package/@anthropic-ai/claude-code) (no CDP)
 
 Launch your IDE with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
 
@@ -242,12 +243,37 @@ Launch your IDE with `--remote-debugging-port=9333` (or whichever port you choos
 
 | Field | Description |
 |---|---|
-| `driver` | `antigravity` (Antigravity) or `cursor` (Cursor) |
+| `driver` | `antigravity`, `cursor`, or `claude-code` |
 | `skills` | Path to a directory of skill markdown files, relative to project root |
 | `cdpPort` | The `--remote-debugging-port` your IDE was launched with |
 | `timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
 | `workspacePattern` | Optional title substring to prefer a specific IDE window target |
 | `verify` | `true` for a generic audit prompt, or a custom prompt string. Omit to disable |
+
+For Claude Code, use this `agent` block instead of CDP fields:
+
+```json
+{
+  "agent": {
+    "driver": "claude-code",
+    "skills": "./skills",
+    "workdir": ".",
+    "timeoutMinutes": 15,
+    "allowedTools": "Read,Write,Edit,Bash,Glob,Grep",
+    "dangerouslySkipPermissions": false,
+    "mcpConfig": "./mcp.json",
+    "appendSystemPrompt": null
+  }
+}
+```
+
+| Claude Code field | Description |
+|---|---|
+| `workdir` | Spawn working directory for `claude` (defaults to project root) |
+| `allowedTools` | Optional comma-separated allowlist, mapped to `--allowedTools` |
+| `dangerouslySkipPermissions` | Passes `--dangerously-skip-permissions` for unattended runs |
+| `mcpConfig` | Optional path mapped to `--mcp-config` |
+| `appendSystemPrompt` | Optional text mapped to `--append-system-prompt` |
 
 Skills are markdown files in the skills directory. Each skill can specify behaviour via YAML frontmatter:
 
@@ -444,7 +470,7 @@ No. We ship updates to `main` when something is ready. There are no stability gu
 <details>
 <summary>Can I use Agent Dispatch with Cursor, Claude Code, Gemini CLI, etc.?</summary>
 
-Only an Antigravity driver ships with faru. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, `abort`, and optionally `setModel` and `releaseWorkspace`, then set `"driver": "your-driver"` in the config. CLI-based agents (Claude Code, Gemini CLI) would be straightforward since you can skip CDP entirely and shell out directly.
+Faru ships with `antigravity`, `cursor`, and `claude-code` drivers. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, `abort`, and optionally `setModel` and `releaseWorkspace`, then set `"driver": "your-driver"` in the config.
 
 </details>
 
