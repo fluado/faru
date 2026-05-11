@@ -93,12 +93,14 @@ function classifyError(text) {
 		/\banthropic_api_key\b/i,
 		/\binvalid api key\b/i,
 		/\bapi key\b.{0,40}\b(missing|required|invalid|expired)\b/i,
+		/\bnot logged in\b/i,
 		/\bauthentication required\b/i,
 		/\bnot authenticated\b/i,
 		/\bunauthorized\b/i,
 		/\b401\b/i,
 		/\bplease login\b/i,
 		/\bclaude\s*\/login\b/i,
+		/\/login\b/i,
 	];
 	if (authPatterns.some((pattern) => pattern.test(lower))) {
 		return "auth";
@@ -260,6 +262,7 @@ async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emi
 	let stderr = "";
 	let stdoutText = "";
 	let assistantText = "";
+	let streamNonJsonText = "";
 	let finalEvent = null;
 	const toolEvents = [];
 
@@ -272,6 +275,7 @@ async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emi
 			try {
 				evt = JSON.parse(trimmed);
 			} catch (_) {
+				streamNonJsonText += trimmed + "\n";
 				return;
 			}
 			const type = normalizeEventType(evt);
@@ -355,6 +359,7 @@ async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emi
 		stderr,
 		stdoutText,
 		assistantText,
+		streamNonJsonText,
 		finalEvent,
 		toolEvents,
 		elapsedMs,
@@ -442,11 +447,13 @@ module.exports = {
 			emitEvent,
 		);
 
-		const streamErrorText = run.execError?.message
+		const streamResultText =
+			run.streamNonJsonText
+			|| extractFinalOutput(run.finalEvent || {}, run.assistantText || run.stderr);
+		const streamErrorText =
+			run.execError?.message
 			|| run.stderr
-			|| (run.finalEvent?.is_error
-				? extractFinalOutput(run.finalEvent || {}, run.stderr)
-				: "");
+			|| (run.finalEvent?.is_error || run.exitCode !== 0 ? streamResultText : "");
 		const isStreamAuthError = classifyError(streamErrorText) === "auth";
 		const shouldFallbackToPlain = run.mode === "stream-json"
 			&& !config?.disablePlainTextFallback
