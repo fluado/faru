@@ -14,6 +14,12 @@ let availabilityCache = null;
 let activeSession = null;
 let selectedModel = null;
 
+const LEGACY_MODEL_MAP = {
+	"opus-4.6": "claude-opus-4-7",
+	"sonnet-4.6": "claude-sonnet-4-5",
+	"haiku-4.5": "claude-haiku-4-5",
+};
+
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -362,6 +368,15 @@ async function runVersionCheck() {
 	});
 }
 
+function normalizeClaudeModel(modelId) {
+	if (!modelId) return null;
+	const raw = String(modelId).trim();
+	if (!raw) return null;
+	const mapped = LEGACY_MODEL_MAP[raw] || raw;
+	if (!mapped.startsWith("claude-")) return null;
+	return mapped;
+}
+
 module.exports = {
 	async isAvailable() {
 		if (availabilityCache !== null) return availabilityCache;
@@ -518,7 +533,7 @@ module.exports = {
 	},
 
 	async setModel(_config, modelId) {
-		selectedModel = modelId || null;
+		selectedModel = normalizeClaudeModel(modelId);
 	},
 
 	async abort() {
