@@ -185,8 +185,9 @@ function buildClaudeArgs(mode, prompt, session, config) {
 			"--input-format",
 			"stream-json",
 		);
+		args.push("--bare");
 	}
-	args.push("--verbose", "--bare");
+	args.push("--verbose");
 
 	const allowedTools = config?.allowedTools || "Read,Write,Edit,Bash,Glob,Grep";
 	if (allowedTools) args.push("--allowedTools", allowedTools);
