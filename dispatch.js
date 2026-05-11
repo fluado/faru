@@ -228,6 +228,13 @@ function formatDuration(ms) {
 	return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
 
+function firstNonEmptyLine(text) {
+	return String(text || "")
+		.split("\n")
+		.map((line) => line.trim())
+		.find(Boolean) || "";
+}
+
 // ---------------------------------------------------------------------------
 // Core orchestration
 // ---------------------------------------------------------------------------
@@ -396,9 +403,14 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			);
 		} else {
 			fns.log(`❌ [${i + 1}/${chain.length}] ${step.skill} failed (${duration})`);
+			const meta = [];
+			if (result.errorType) meta.push(`type: ${result.errorType}`);
+			if (result.logFile) meta.push(`log: ${result.logFile}`);
+			const reason = firstNonEmptyLine(result.output).slice(0, 240);
+			const metaSuffix = meta.length > 0 ? ` (${meta.join(", ")})` : "";
 			fns.addComment(
 				card.slug,
-				`❌ ${step.skill} failed after ${duration}: ${result.output.substring(0, 200)}`,
+				`❌ ${step.skill} failed after ${duration}${metaSuffix}${reason ? `: ${reason}` : ""}`,
 				dispatchActor,
 			);
 			state.status = "error";

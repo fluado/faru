@@ -89,20 +89,27 @@ function getSkillProduces(config) {
 
 function classifyError(text) {
 	const lower = String(text || "").toLowerCase();
-	if (
-		lower.includes("anthropic_api_key") ||
-		lower.includes("api key") ||
-		lower.includes("auth") ||
-		lower.includes("login")
-	) {
+	const authPatterns = [
+		/\banthropic_api_key\b/i,
+		/\binvalid api key\b/i,
+		/\bapi key\b.{0,40}\b(missing|required|invalid|expired)\b/i,
+		/\bauthentication required\b/i,
+		/\bnot authenticated\b/i,
+		/\bunauthorized\b/i,
+		/\b401\b/i,
+		/\bplease login\b/i,
+		/\bclaude\s*\/login\b/i,
+	];
+	if (authPatterns.some((pattern) => pattern.test(lower))) {
 		return "auth";
 	}
-	if (
-		lower.includes("rate limit") ||
-		lower.includes("quota") ||
-		lower.includes("too many requests") ||
-		lower.includes("429")
-	) {
+	const rateLimitPatterns = [
+		/\brate limit\b/i,
+		/\bquota\b/i,
+		/\btoo many requests\b/i,
+		/\b429\b/i,
+	];
+	if (rateLimitPatterns.some((pattern) => pattern.test(lower))) {
 		return "rate_limit";
 	}
 	return "generic";
@@ -178,6 +185,17 @@ function appendDispatchLedger(workdir, payload) {
 	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 	const fp = path.join(dir, "dispatches.jsonl");
 	fs.appendFileSync(fp, JSON.stringify(payload) + "\n", "utf-8");
+}
+
+function writeDispatchLog(workdir, payload) {
+	const logsDir = path.join(workdir, ".faru", "logs");
+	if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+	const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+	const safeSessionId = String(payload?.sessionId || "session").replace(/[^a-zA-Z0-9_-]/g, "_");
+	const filename = `${stamp}-${safeSessionId}.json`;
+	const absPath = path.join(logsDir, filename);
+	fs.writeFileSync(absPath, JSON.stringify(payload, null, 2), "utf-8");
+	return path.relative(workdir, absPath).replace(/\\/g, "/");
 }
 
 function buildClaudeArgs(mode, prompt, session, config) {
@@ -331,6 +349,7 @@ async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emi
 	const elapsedMs = Date.now() - startedAt;
 	return {
 		mode,
+		args,
 		exitCode,
 		execError,
 		stderr,
@@ -425,7 +444,9 @@ module.exports = {
 
 		const streamErrorText = run.execError?.message
 			|| run.stderr
-			|| extractFinalOutput(run.finalEvent || {}, run.assistantText || run.stderr);
+			|| (run.finalEvent?.is_error
+				? extractFinalOutput(run.finalEvent || {}, run.stderr)
+				: "");
 		const isStreamAuthError = classifyError(streamErrorText) === "auth";
 		const shouldFallbackToPlain = run.mode === "stream-json"
 			&& !config?.disablePlainTextFallback
@@ -449,16 +470,19 @@ module.exports = {
 		const resultText = run.mode === "plain"
 			? (plainOutput || run.stderr)
 			: extractFinalOutput(run.finalEvent || {}, run.assistantText || run.stderr);
-		const isError = run.mode === "plain"
+		const isStructuredError = run.mode === "plain"
 			? false
 			: Boolean(run.finalEvent?.is_error);
-		const success =
+		const baseSuccess =
 			!session.aborted &&
 			!run.killedByTimeout &&
 			!run.execError &&
 			run.exitCode === 0 &&
-			!isError &&
-			classifyError(resultText || run.stderr) !== "auth";
+			!isStructuredError;
+
+		let success = baseSuccess;
+		let output = resultText || "[No output]";
+		let errorType = null;
 
 		const produces = getSkillProduces(config);
 		const cardFolder = config?.__cardSlug
@@ -468,14 +492,9 @@ module.exports = {
 			const files = listFilesRecursive(cardFolder);
 			const matched = files.some((f) => matchGlob(f, produces));
 			if (!matched) {
-				return {
-					success: false,
-					output: `Dispatch completed but required artifact "${produces}" was not created in card folder`,
-					errorType: "produces_mismatch",
-					cost: metrics.cost,
-					durationMs: metrics.durationMs || elapsedMs,
-					turns: metrics.turns,
-				};
+				success = false;
+				errorType = "produces_mismatch";
+				output = `Dispatch completed but required artifact "${produces}" was not created in card folder`;
 			}
 		}
 
@@ -486,13 +505,45 @@ module.exports = {
 		}
 
 		const errorText = run.execError?.message || run.stderr || resultText;
-		const errorType = session.aborted
-			? "aborted"
-			: run.killedByTimeout
-				? "timeout"
-				: success
-					? null
+		if (!success && !errorType) {
+			errorType = session.aborted
+				? "aborted"
+				: run.killedByTimeout
+					? "timeout"
 					: classifyError(errorText);
+		}
+		if (!success && (!output || output === "[No output]")) {
+			output =
+				run.killedByTimeout
+					? `Timeout — agent did not finish within ${config?.timeoutMinutes || 15} minutes`
+					: (errorText || "Claude Code execution failed");
+		}
+
+		const logFile = writeDispatchLog(session.workdir, {
+			timestamp: new Date().toISOString(),
+			sessionId: session.id,
+			claudeSessionId: session.claudeSessionId,
+			skill: config?.__skillId || null,
+			cardSlug: config?.__cardSlug || null,
+			success,
+			errorType,
+			mode: run.mode,
+			costUsd: metrics.cost,
+			durationMs: metrics.durationMs || elapsedMs,
+			turns: metrics.turns,
+			run: {
+				args: run.args,
+				exitCode: run.exitCode,
+				killedByTimeout: run.killedByTimeout,
+				execError: run.execError?.message || null,
+				stderr: run.stderr || null,
+				stdout: run.stdoutText || null,
+				assistantText: run.assistantText || null,
+				finalEvent: run.finalEvent || null,
+				toolEvents: run.toolEvents || [],
+			},
+			outputPreview: String(output || "").slice(0, 1000),
+		});
 
 		appendDispatchLedger(session.workdir, {
 			timestamp: new Date().toISOString(),
@@ -507,6 +558,7 @@ module.exports = {
 			durationMs: metrics.durationMs || elapsedMs,
 			turns: metrics.turns,
 			toolEvents: run.toolEvents,
+			logFile,
 		});
 
 		if (success) {
@@ -516,19 +568,18 @@ module.exports = {
 				cost: metrics.cost,
 				durationMs: metrics.durationMs || elapsedMs,
 				turns: metrics.turns,
+				logFile,
 			};
 		}
 
 		return {
 			success: false,
-			output:
-				run.killedByTimeout
-					? `Timeout — agent did not finish within ${config?.timeoutMinutes || 15} minutes`
-					: (errorText || "Claude Code execution failed"),
+			output,
 			errorType,
 			cost: metrics.cost,
 			durationMs: metrics.durationMs || elapsedMs,
 			turns: metrics.turns,
+			logFile,
 		};
 	},
 
