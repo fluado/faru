@@ -366,6 +366,122 @@ function scanCards(includeArchive = false) {
 	return cards;
 }
 
+// --- Card Cache ---
+// Eliminates ~225 synchronous fs syscalls per /api/cards request.
+// Invalidated by a focused BACKLOG_DIR watcher (see below).
+
+let _cardCache = null;
+let _archiveCache = null;
+
+function getCards() {
+	if (!_cardCache) {
+		_cardCache = scanCards(false);
+	}
+	return _cardCache;
+}
+
+function getArchivedCards() {
+	if (!_archiveCache) {
+		_archiveCache = scanCards(true);
+	}
+	return _archiveCache;
+}
+
+function invalidateCardCache() {
+	_cardCache = null;
+	_archiveCache = null;
+}
+
+// Scan a single card folder and return its card object (or null).
+function scanSingleCard(slug) {
+	const folderPath = path.join(BACKLOG_DIR, slug);
+	if (!fs.existsSync(folderPath)) return null;
+	if (!fs.statSync(folderPath).isDirectory()) return null;
+
+	const canonical = findCanonicalFile(folderPath);
+	const allFiles = fs.readdirSync(folderPath).filter((f) => f.endsWith(".md"));
+	const stat = fs.statSync(folderPath);
+
+	if (!canonical) {
+		const dateMatch = slug.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
+		return {
+			slug,
+			title: dateMatch ? dateMatch[2] : slug,
+			type: "product",
+			status: "todo",
+			assigned: "",
+			created: dateMatch ? dateMatch[1] : "",
+			canonicalFile: null,
+			files: allFiles,
+			goal: "",
+			mtime: stat.mtimeMs,
+		};
+	}
+
+	const content = fs.readFileSync(canonical, "utf-8");
+	const { data, body } = parseFrontmatter(content);
+	const dateMatch = slug.match(/^(\d{4}-\d{2}-\d{2})-(.+)/);
+	const cardMdPath = path.join(folderPath, "CARD.md");
+	let comments;
+	if (fs.existsSync(cardMdPath) && canonical !== cardMdPath) {
+		const cardContent = fs.readFileSync(cardMdPath, "utf-8");
+		const { body: cardBody } = parseFrontmatter(cardContent);
+		comments = extractComments(cardBody);
+	} else {
+		comments = extractComments(body);
+	}
+
+	const ms = extractMilestones(folderPath, allFiles);
+	const milestoneData = ms
+		? {
+			milestones: ms.milestones,
+			milestoneProgress: {
+				done: ms.milestones.filter((m) => m.done).length,
+				total: ms.milestones.length,
+				prefix: ms.prefix,
+			},
+		}
+		: { milestones: [], milestoneProgress: null };
+
+	return {
+		slug,
+		title: data.title || (dateMatch ? dateMatch[2] : slug),
+		type: data.type || "product",
+		status: data.status || "todo",
+		assigned: data.assigned || "",
+		created: data.created || (dateMatch ? dateMatch[1] : ""),
+		edited: data.edited || "",
+		canonicalFile: path.basename(canonical),
+		files: allFiles,
+		linkedFiles: resolveLinks(Array.isArray(data.links) ? data.links : []),
+		goal: data.description || extractGoal(body),
+		mtime: stat.mtimeMs,
+		comments,
+		commentCount: comments.length,
+		isArchived: false,
+		...milestoneData,
+	};
+}
+
+// Re-scan a single card folder and patch the cache in-place.
+function invalidateSlug(slug) {
+	if (!_cardCache) return; // no cache — nothing to patch
+	const fresh = scanSingleCard(slug);
+	if (!fresh) {
+		// Card was deleted or archived — drop from cache
+		_cardCache = _cardCache.filter(c => c.slug !== slug);
+		_archiveCache = null; // archive may have gained this card
+		return;
+	}
+	const idx = _cardCache.findIndex(c => c.slug === slug);
+	if (idx >= 0) {
+		_cardCache[idx] = fresh;
+	} else {
+		_cardCache.push(fresh);
+	}
+	_cardCache.sort((a, b) => b.mtime - a.mtime);
+}
+
 // --- Card Mutations ---
 
 function updateCard(slug, updates) {
@@ -633,7 +749,7 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	if (url.pathname === "/api/assignees" && req.method === "GET") {
-		const allCards = scanCards();
+		const allCards = getCards();
 		const set = new Set();
 		if (gitUser) set.add(gitUser);
 		for (const c of allCards) {
@@ -676,7 +792,7 @@ const server = http.createServer(async (req, res) => {
 	if (url.pathname === "/api/cards" && req.method === "GET") {
 		const isArchived = url.searchParams.get("archive") === "1";
 		res.writeHead(200, { "Content-Type": "application/json" });
-		res.end(JSON.stringify(scanCards(isArchived)));
+		res.end(JSON.stringify(isArchived ? getArchivedCards() : getCards()));
 		return;
 	}
 
@@ -692,6 +808,7 @@ const server = http.createServer(async (req, res) => {
 			} else if (body.title) {
 				gitCommit(`rename ${slug}`, [`backlog/${slug}`]);
 			}
+			invalidateSlug(slug);
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify(result));
 		} catch (e) {
@@ -714,6 +831,7 @@ const server = http.createServer(async (req, res) => {
 			gitCommit(`create ${slug} as ${body.status || "todo"}`, [
 				`backlog/${slug}`,
 			]);
+			invalidateCardCache();
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ slug }));
 		} catch (e) {
@@ -734,6 +852,7 @@ const server = http.createServer(async (req, res) => {
 				`backlog/${slug}`,
 				`backlog/archive/${slug}`,
 			]);
+			invalidateCardCache();
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ archived: true }));
 		} catch (e) {
@@ -755,6 +874,7 @@ const server = http.createServer(async (req, res) => {
 			gitCommit(`comment on ${slug}`, [
 				`backlog/${slug}`,
 			]);
+			invalidateSlug(slug);
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify(comment));
 		} catch (e) {
@@ -1117,7 +1237,7 @@ const server = http.createServer(async (req, res) => {
 			}
 
 			// Find the card data
-			const allCards = scanCards();
+			const allCards = getCards();
 			const card = allCards.find(c => c.slug === slug);
 			if (!card) {
 				res.writeHead(404, { "Content-Type": "application/json" });
@@ -1281,9 +1401,24 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
 	}, 200);
 });
 
-// Watch entire repo for changes (auto-commit + live-reload for backlog)
+// Watch backlog for card changes — invalidate cache + notify browsers.
+// This is separate from the repo-wide watcher so that non-backlog changes
+// (kata sweeps, tmp files, etc.) don't trigger SSE reloads.
+let backlogReloadTimer = null;
+fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
+	if (!filename || filename.includes(".DS_Store") || syncing) return;
+
+	clearTimeout(backlogReloadTimer);
+	backlogReloadTimer = setTimeout(() => {
+		log(`♻  backlog change (${path.basename(filename)}) — invalidating cache`);
+		invalidateCardCache();
+		notifyLiveReload();
+	}, 500); // 500ms debounce — lets multi-file writes settle
+});
+
+// Watch entire repo for git auto-commit only (no SSE, no cache invalidation).
+// Backlog reload is handled by the focused watcher above.
 let repoCommitTimer = null;
-let repoReloadTimer = null;
 const repoChanges = new Set();
 fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
 	if (
@@ -1294,19 +1429,6 @@ fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
 		syncing
 	)
 		return;
-	// Notify browsers when backlog files change (card status edits, etc.)
-	if (
-		filename.startsWith("backlog" + path.sep) ||
-		filename.startsWith("backlog/")
-	) {
-		clearTimeout(repoReloadTimer);
-		repoReloadTimer = setTimeout(() => {
-			log(
-				`♻  backlog change detected (${path.basename(filename)}) — refreshing boards`,
-			);
-			notifyLiveReload();
-		}, 300);
-	}
 	repoChanges.add(filename);
 	clearTimeout(repoCommitTimer);
 	repoCommitTimer = setTimeout(() => {
