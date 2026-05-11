@@ -174,6 +174,168 @@ function appendDispatchLedger(workdir, payload) {
 	fs.appendFileSync(fp, JSON.stringify(payload) + "\n", "utf-8");
 }
 
+function buildClaudeArgs(mode, prompt, session, config) {
+	const args = ["-p"];
+	if (mode === "plain") {
+		args.push(String(prompt || ""));
+	} else {
+		args.push(
+			"--output-format",
+			"stream-json",
+			"--input-format",
+			"stream-json",
+		);
+	}
+	args.push("--verbose", "--bare");
+
+	const allowedTools = config?.allowedTools || "Read,Write,Edit,Bash,Glob,Grep";
+	if (allowedTools) args.push("--allowedTools", allowedTools);
+	if (config?.dangerouslySkipPermissions) {
+		args.push("--dangerously-skip-permissions");
+	}
+	const mcpConfig = resolvePathMaybe(session.workdir, config?.mcpConfig);
+	if (mcpConfig) args.push("--mcp-config", mcpConfig);
+	if (config?.appendSystemPrompt) {
+		args.push("--append-system-prompt", config.appendSystemPrompt);
+	}
+	if (selectedModel) args.push("--model", selectedModel);
+	if (config?.maxTurns) args.push("--max-turns", String(config.maxTurns));
+	if (session.claudeSessionId) args.push("--resume", session.claudeSessionId);
+
+	const cardFolder = config?.__cardSlug
+		? path.join(config.__backlogDir || "", config.__cardSlug)
+		: null;
+	if (
+		cardFolder &&
+		fs.existsSync(cardFolder) &&
+		!isSubPath(session.workdir, cardFolder)
+	) {
+		args.push("--add-dir", cardFolder);
+	}
+	return args;
+}
+
+function normalizePlainOutput(text) {
+	return String(text || "")
+		.split("\n")
+		.filter((line) => !line.startsWith("Warning: no stdin data received"))
+		.join("\n")
+		.trim();
+}
+
+async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emitEvent) {
+	const args = buildClaudeArgs(mode, prompt, session, config);
+	const child = spawn("claude", args, {
+		cwd: session.workdir,
+		stdio: ["pipe", "pipe", "pipe"],
+	});
+	session.child = child;
+
+	let killedByTimeout = false;
+	let stderr = "";
+	let stdoutText = "";
+	let assistantText = "";
+	let finalEvent = null;
+	const toolEvents = [];
+
+	if (mode === "stream-json") {
+		const rl = readline.createInterface({ input: child.stdout });
+		rl.on("line", (line) => {
+			const trimmed = line.trim();
+			if (!trimmed) return;
+			let evt;
+			try {
+				evt = JSON.parse(trimmed);
+			} catch (_) {
+				return;
+			}
+			const type = normalizeEventType(evt);
+			if (!session.claudeSessionId) {
+				const sid = extractSessionId(evt);
+				if (sid) session.claudeSessionId = sid;
+			}
+			if (type.includes("tool_use") || type.includes("tool_result")) {
+				const toolName = evt?.name || evt?.tool || evt?.tool_name || "unknown";
+				toolEvents.push({
+					type,
+					tool: toolName,
+				});
+				emitEvent(`${type}: ${toolName}`);
+			}
+			if (type === "assistant" || type.includes("assistant")) {
+				const delta = extractTextDelta(evt);
+				assistantText += delta;
+				if (delta.trim()) {
+					emitEvent(`assistant: ${delta.trim().slice(0, 120)}`);
+				}
+			}
+			if (type === "result" || type.includes("/result")) {
+				finalEvent = evt;
+				emitEvent("result event received");
+			}
+		});
+		child.on("close", () => {
+			rl.close();
+		});
+	} else {
+		child.stdout.on("data", (chunk) => {
+			stdoutText += String(chunk);
+		});
+	}
+
+	child.stderr.on("data", (chunk) => {
+		stderr += String(chunk);
+	});
+
+	const timeout = setTimeout(() => {
+		killedByTimeout = true;
+		try {
+			child.kill("SIGTERM");
+		} catch (_) {}
+	}, timeoutMs);
+
+	const startedAt = Date.now();
+	let exitCode = null;
+	let execError = null;
+	await new Promise((resolve) => {
+		child.on("error", (err) => {
+			execError = err;
+		});
+		child.on("close", (code) => {
+			exitCode = code;
+			resolve();
+		});
+		if (mode === "stream-json") {
+			const streamPrompt = {
+				type: "user",
+				message: {
+					role: "user",
+					content: [{ type: "text", text: String(prompt || "") }],
+				},
+			};
+			child.stdin.write(JSON.stringify(streamPrompt) + "\n");
+		}
+		child.stdin.end();
+	});
+
+	clearTimeout(timeout);
+	session.child = null;
+
+	const elapsedMs = Date.now() - startedAt;
+	return {
+		mode,
+		exitCode,
+		execError,
+		stderr,
+		stdoutText,
+		assistantText,
+		finalEvent,
+		toolEvents,
+		elapsedMs,
+		killedByTimeout,
+	};
+}
+
 async function runVersionCheck() {
 	return new Promise((resolve) => {
 		const p = spawn("claude", ["--version"], { stdio: "ignore" });
@@ -228,45 +390,6 @@ module.exports = {
 		}
 
 		const timeoutMs = (config?.timeoutMinutes || 15) * 60_000;
-		const args = [
-			"-p",
-			"--output-format",
-			"stream-json",
-			"--input-format",
-			"stream-json",
-			"--verbose",
-			"--bare",
-		];
-		const allowedTools = config?.allowedTools || "Read,Write,Edit,Bash,Glob,Grep";
-		if (allowedTools) args.push("--allowedTools", allowedTools);
-		if (config?.dangerouslySkipPermissions) {
-			args.push("--dangerously-skip-permissions");
-		}
-		const mcpConfig = resolvePathMaybe(session.workdir, config?.mcpConfig);
-		if (mcpConfig) args.push("--mcp-config", mcpConfig);
-		if (config?.appendSystemPrompt) {
-			args.push("--append-system-prompt", config.appendSystemPrompt);
-		}
-		if (selectedModel) args.push("--model", selectedModel);
-		if (config?.maxTurns) args.push("--max-turns", String(config.maxTurns));
-		if (session.claudeSessionId) args.push("--resume", session.claudeSessionId);
-
-		const cardFolder = config?.__cardSlug
-			? path.join(config.__backlogDir || "", config.__cardSlug)
-			: null;
-		if (
-			cardFolder &&
-			fs.existsSync(cardFolder) &&
-			!isSubPath(session.workdir, cardFolder)
-		) {
-			args.push("--add-dir", cardFolder);
-		}
-
-		const child = spawn("claude", args, {
-			cwd: session.workdir,
-			stdio: ["pipe", "pipe", "pipe"],
-		});
-		session.child = child;
 		const onEvent = typeof config?.__onEvent === "function" ? config.__onEvent : null;
 		const emitEvent = (text) => {
 			if (!onEvent) return;
@@ -274,100 +397,57 @@ module.exports = {
 				onEvent(text);
 			} catch (_) {}
 		};
+		const preferredMode = config?.plainTextMode ? "plain" : "stream-json";
+		let run = await runClaudeInvocation(
+			session,
+			prompt,
+			config,
+			preferredMode,
+			timeoutMs,
+			emitEvent,
+		);
 
-		let killedByTimeout = false;
-		let stderr = "";
-		let assistantText = "";
-		let finalEvent = null;
-		const toolEvents = [];
+		const streamErrorText = run.execError?.message
+			|| run.stderr
+			|| extractFinalOutput(run.finalEvent || {}, run.assistantText || run.stderr);
+		const isStreamAuthError = classifyError(streamErrorText) === "auth";
+		const shouldFallbackToPlain = run.mode === "stream-json"
+			&& !config?.disablePlainTextFallback
+			&& isStreamAuthError;
 
-		const rl = readline.createInterface({ input: child.stdout });
-		rl.on("line", (line) => {
-			const trimmed = line.trim();
-			if (!trimmed) return;
-			let evt;
-			try {
-				evt = JSON.parse(trimmed);
-			} catch (_) {
-				return;
-			}
-			const type = normalizeEventType(evt);
-			if (!session.claudeSessionId) {
-				const sid = extractSessionId(evt);
-				if (sid) session.claudeSessionId = sid;
-			}
-			if (type.includes("tool_use") || type.includes("tool_result")) {
-				const toolName = evt?.name || evt?.tool || evt?.tool_name || "unknown";
-				toolEvents.push({
-					type,
-					tool: toolName,
-				});
-				emitEvent(`${type}: ${toolName}`);
-			}
-			if (type === "assistant" || type.includes("assistant")) {
-				const delta = extractTextDelta(evt);
-				assistantText += delta;
-				if (delta.trim()) {
-					emitEvent(`assistant: ${delta.trim().slice(0, 120)}`);
-				}
-			}
-			if (type === "result" || type.includes("/result")) {
-				finalEvent = evt;
-				emitEvent("result event received");
-			}
-		});
+		if (shouldFallbackToPlain) {
+			emitEvent("auth failed in stream-json mode, retrying plain mode");
+			run = await runClaudeInvocation(
+				session,
+				prompt,
+				config,
+				"plain",
+				timeoutMs,
+				emitEvent,
+			);
+		}
 
-		child.stderr.on("data", (chunk) => {
-			stderr += String(chunk);
-		});
-
-		const timeout = setTimeout(() => {
-			killedByTimeout = true;
-			try {
-				child.kill("SIGTERM");
-			} catch (_) {}
-		}, timeoutMs);
-
-		const startedAt = Date.now();
-		let exitCode = null;
-		let execError = null;
-		const closePromise = new Promise((resolve) => {
-			child.on("error", (err) => {
-				execError = err;
-			});
-			child.on("close", (code) => {
-				exitCode = code;
-				resolve();
-			});
-		});
-
-		const streamPrompt = {
-			type: "user",
-			message: {
-				role: "user",
-				content: [{ type: "text", text: String(prompt || "") }],
-			},
-		};
-		child.stdin.write(JSON.stringify(streamPrompt) + "\n");
-		child.stdin.end();
-
-		await closePromise;
-		clearTimeout(timeout);
-		rl.close();
-		session.child = null;
-
-		const elapsedMs = Date.now() - startedAt;
-		const metrics = extractMetrics(finalEvent || {});
-		const resultText = extractFinalOutput(finalEvent || {}, assistantText || stderr);
-		const isError = Boolean(finalEvent?.is_error);
+		const elapsedMs = run.elapsedMs;
+		const metrics = extractMetrics(run.finalEvent || {});
+		const plainOutput = normalizePlainOutput(run.stdoutText || "");
+		const resultText = run.mode === "plain"
+			? (plainOutput || run.stderr)
+			: extractFinalOutput(run.finalEvent || {}, run.assistantText || run.stderr);
+		const isError = run.mode === "plain"
+			? false
+			: Boolean(run.finalEvent?.is_error);
 		const success =
 			!session.aborted &&
-			!killedByTimeout &&
-			!execError &&
-			exitCode === 0 &&
-			!isError;
+			!run.killedByTimeout &&
+			!run.execError &&
+			run.exitCode === 0 &&
+			!isError &&
+			classifyError(resultText || run.stderr) !== "auth";
 
 		const produces = getSkillProduces(config);
+		const cardFolder = config?.__cardSlug
+			? path.join(config.__backlogDir || "", config.__cardSlug)
+			: null;
 		if (success && produces && cardFolder && fs.existsSync(cardFolder)) {
 			const files = listFilesRecursive(cardFolder);
 			const matched = files.some((f) => matchGlob(f, produces));
@@ -389,10 +469,10 @@ module.exports = {
 			} catch (_) {}
 		}
 
-		const errorText = execError?.message || stderr || resultText;
+		const errorText = run.execError?.message || run.stderr || resultText;
 		const errorType = session.aborted
 			? "aborted"
-			: killedByTimeout
+			: run.killedByTimeout
 				? "timeout"
 				: success
 					? null
@@ -406,10 +486,11 @@ module.exports = {
 			cardSlug: config?.__cardSlug || null,
 			success,
 			errorType,
+			mode: run.mode,
 			costUsd: metrics.cost,
 			durationMs: metrics.durationMs || elapsedMs,
 			turns: metrics.turns,
-			toolEvents,
+			toolEvents: run.toolEvents,
 		});
 
 		if (success) {
@@ -425,7 +506,7 @@ module.exports = {
 		return {
 			success: false,
 			output:
-				killedByTimeout
+				run.killedByTimeout
 					? `Timeout — agent did not finish within ${config?.timeoutMinutes || 15} minutes`
 					: (errorText || "Claude Code execution failed"),
 			errorType,
