@@ -410,7 +410,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 
 ## Features
 
-- **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with an Antigravity CDP driver). Skills are markdown files that self-describe their chain ordering via frontmatter. After each skill completes, an optional verification pass prompts the agent to audit its own work before moving on
+- **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with Antigravity, Cursor, and Claude Code drivers). Skills are markdown files that self-describe their chain ordering via frontmatter. After each skill completes, an optional verification pass prompts the agent to audit its own work before moving on
 - **Dojo (kata scheduler)** — run recurring agent tasks on cron schedules. Kata are markdown prompts with frontmatter scheduling. Sweep reports appear in a timeline UI where you can promote findings to cards or mute them. Hot-reloads cron schedules when kata files change
 - **Weekly Goal** — set a high-level focus via an editable board banner that saves directly to `weekly-goal.md` in your project root
 - **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
@@ -468,7 +468,7 @@ No. We ship updates to `main` when something is ready. There are no stability gu
 </details>
 
 <details>
-<summary>Can I use Agent Dispatch with Cursor, Claude Code, Gemini CLI, etc.?</summary>
+<summary>Can I use Agent Dispatch with other agents or IDEs?</summary>
 
 Faru ships with `antigravity`, `cursor`, and `claude-code` drivers. The driver interface is simple — create a file in `drivers/` that exports `execute`, `newSession`, `isAvailable`, `abort`, and optionally `setModel` and `releaseWorkspace`, then set `"driver": "your-driver"` in the config.
 
