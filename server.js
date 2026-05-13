@@ -76,13 +76,17 @@ let agentDriver = null;
 let agentSkillsDir = null;
 
 if (agentConfig) {
-	try {
-		agentDriver = require(`./drivers/${agentConfig.driver}`);
-		agentSkillsDir = path.resolve(DOCS_ROOT, agentConfig.skills || "./skills");
-		log(`🤖 Agent dispatch enabled — driver: ${agentConfig.driver}, skills: ${agentConfig.skills}`);
-	} catch (e) {
-		console.error(`⚠  Failed to load agent driver "${agentConfig.driver}": ${e.message}`);
-		console.error(`   Dispatch feature will be disabled.`);
+	if (!agentConfig.driver) {
+		log(`⚠  No agent driver configured — set agent.driver in .faru.local.json`);
+	} else {
+		try {
+			agentDriver = require(`./drivers/${agentConfig.driver}`);
+			agentSkillsDir = path.resolve(DOCS_ROOT, agentConfig.skills || "./skills");
+			log(`🤖 Agent dispatch enabled — driver: ${agentConfig.driver}, skills: ${agentConfig.skills}`);
+		} catch (e) {
+			console.error(`⚠  Failed to load agent driver "${agentConfig.driver}": ${e.message}`);
+			console.error(`   Dispatch feature will be disabled.`);
+		}
 	}
 }
 
