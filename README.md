@@ -222,50 +222,78 @@ Create a `faru.config.json` in your project root:
 
 ### Agent Dispatch — Antigravity / Cursor / Claude Code (optional)
 
-faru ships with CDP drivers that dispatch cards to the IDE's built-in agent via Chrome DevTools Protocol:
-- `driver: "antigravity"` for [Antigravity](https://antigravity.dev)
-- `driver: "cursor"` for Cursor (with CDP enabled)
+faru ships with drivers that dispatch cards to an AI coding agent:
+- `driver: "antigravity"` for [Antigravity](https://antigravity.dev) (CDP)
+- `driver: "cursor"` for Cursor with CDP enabled (CDP)
 - `driver: "claude-code"` for [Claude Code CLI](https://www.npmjs.com/package/@anthropic-ai/claude-code) (no CDP)
 
-Launch your IDE with `--remote-debugging-port=9333` (or whichever port you choose), then add an `agent` block to your config:
+Agent config is split between the **shared config** (`faru.config.json`) and the **local config** (`.faru.local.json`). The shared config contains team-wide settings. The driver and its driver-specific options are machine-specific and belong in `.faru.local.json`.
+
+#### Shared config (`faru.config.json`)
+
+These fields are universal across all drivers:
 
 ```json
 {
   "agent": {
-    "driver": "cursor",
     "skills": "./skills",
-    "cdpPort": 9333,
     "timeoutMinutes": 15,
-    "workspacePattern": "agent"
+    "verify": "Review every acceptance criterion. Confirm each is done or fix it."
   }
 }
 ```
 
 | Field | Description |
 |---|---|
-| `driver` | `antigravity`, `cursor`, or `claude-code` |
 | `skills` | Path to a directory of skill markdown files, relative to project root |
-| `cdpPort` | The `--remote-debugging-port` your IDE was launched with |
 | `timeoutMinutes` | Max time per skill before the dispatch is marked as failed |
-| `workspacePattern` | Optional title substring to prefer a specific IDE window target |
 | `verify` | `true` for a generic audit prompt, or a custom prompt string. Omit to disable |
 
-For Claude Code, use this `agent` block instead of CDP fields:
+#### Local config (`.faru.local.json`) — driver setup
+
+The `driver` field and all driver-specific options go here. This file is gitignored and never shared.
+
+**Antigravity** — launch with `--remote-debugging-port=9333`:
 
 ```json
 {
   "agent": {
-    "driver": "claude-code",
-    "skills": "./skills",
-    "workdir": ".",
-    "timeoutMinutes": 15,
-    "allowedTools": "Read,Write,Edit,Bash,Glob,Grep",
-    "dangerouslySkipPermissions": false,
-    "mcpConfig": "./mcp.json",
-    "appendSystemPrompt": null
+    "driver": "antigravity",
+    "cdpPort": 9333,
+    "workspacePattern": "agent"
   }
 }
 ```
+
+**Cursor** — launch with `--remote-debugging-port=9333`:
+
+```json
+{
+  "agent": {
+    "driver": "cursor",
+    "cdpPort": 9333
+  }
+}
+```
+
+**Claude Code**:
+
+```json
+{
+  "runKata": false,
+  "agent": {
+    "driver": "claude-code",
+    "workdir": ".",
+    "allowedTools": "Read,Write,Edit,Bash,Glob,Grep",
+    "dangerouslySkipPermissions": false
+  }
+}
+```
+
+| CDP field (Antigravity / Cursor) | Description |
+|---|---|
+| `cdpPort` | The `--remote-debugging-port` your IDE was launched with |
+| `workspacePattern` | Optional title substring to prefer a specific IDE window target |
 
 | Claude Code field | Description |
 |---|---|
@@ -274,6 +302,10 @@ For Claude Code, use this `agent` block instead of CDP fields:
 | `dangerouslySkipPermissions` | Passes `--dangerously-skip-permissions` for unattended runs |
 | `mcpConfig` | Optional path mapped to `--mcp-config` |
 | `appendSystemPrompt` | Optional text mapped to `--append-system-prompt` |
+
+If no `agent.driver` is set, faru logs a warning and dispatch is disabled. The Dojo UI still shows kata for reference, but nothing can run.
+
+#### Skills
 
 Skills are markdown files in the skills directory. Each skill can specify behaviour via YAML frontmatter:
 
@@ -388,17 +420,23 @@ Dojo watches the kata directory for changes — editing a kata file automaticall
 
 By default, the kata scheduler is **off** — kata are visible and can be run manually, but cron schedules don't fire. This prevents every machine from running the same scheduled kata.
 
-To enable it on a specific machine, create a `.faru.local.json` in the project root (next to `faru.config.json`):
+To enable it, set `runKata` to `true` in `.faru.local.json`:
 
 ```json
 {
-  "runKata": true
+  "runKata": true,
+  "agent": {
+    "driver": "antigravity",
+    "cdpPort": 9333
+  }
 }
 ```
 
+Only enable the scheduler on **one machine** to avoid duplicate runs. Other team members should either omit `runKata` or set it to `false`.
+
 **Add `.faru.local.json` to your `.gitignore`** — this file is machine-specific and should not be committed.
 
-`.faru.local.json` is a general-purpose override file. It deep-merges on top of `faru.config.json`, so you can override any setting per-machine (e.g. a different port or CDP port) without touching the shared config.
+`.faru.local.json` is a general-purpose override file. It deep-merges on top of `faru.config.json`, so you can override any setting per-machine (e.g. a different port, driver, or driver-specific options) without touching the shared config. The `agent.driver` field **must** be set here — it is intentionally absent from the shared config to prevent one machine's driver choice from propagating to the team.
 
 ## Creating Cards
 
