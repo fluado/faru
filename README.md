@@ -10,6 +10,10 @@
 
 Built for teams where agents do the work and humans steer. Agents create and manage cards as markdown files, the board renders them live. One kanban board, two kinds of workers, everything stored in git.
 
+<p align="center">
+  <img src="public/board.png" alt="faru board" width="800">
+</p>
+
 ## Quick Start
 
 1. Copy the [setup prompt](#setup-prompt) below into your AI coding agent
@@ -118,6 +122,10 @@ npx github:fluado/faru
 
 Every card is a folder inside `backlog/` following the naming convention `YYYY-MM-DD-TYPE-TITLE/`. Each folder contains a `CARD.md` (or any `.md` file) with YAML frontmatter:
 
+<p align="center">
+  <img src="public/modal.png" alt="card detail view" width="700">
+</p>
+
 ```yaml
 ---
 title: Implement OAuth flow
@@ -221,6 +229,10 @@ Create a `faru.config.json` in your project root:
 | `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
 
 ### Agent Dispatch — Antigravity / Cursor / Claude Code (optional)
+
+<p align="center">
+  <img src="public/dispatch.png" alt="dispatch to agent" width="700">
+</p>
 
 faru ships with drivers that dispatch cards to an AI coding agent:
 - `driver: "antigravity"` for [Antigravity](https://antigravity.dev) (CDP)
@@ -352,6 +364,10 @@ After each skill completes, faru can send a follow-up prompt in the same session
 | omitted / `false` | No verification pass |
 
 ### Dojo — Kata Scheduler (optional)
+
+<p align="center">
+  <img src="public/dojo.png" alt="dojo kata scheduler" width="800">
+</p>
 
 Dojo is a cron scheduler that runs recurring agent tasks ("kata"). Each kata is a markdown file in a directory you configure. On schedule, faru dispatches the kata prompt through the same agent driver used for card dispatch.
 
