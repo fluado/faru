@@ -108,11 +108,12 @@ const CHAT_EXTRACT_EXPR = `
 // DOM expression to check if the agent is idle
 const IDLE_CHECK_EXPR = `
 (function() {
-  const chatArea = document.querySelector('#conversation, #chat, #cascade');
+  const chatArea = document.querySelector('#conversation');
+  const cancelBtn = chatArea ? chatArea.querySelector('button[aria-label="Cancel"]') : null;
   const stopIcon = chatArea ? chatArea.querySelector("svg.lucide-square, [data-tooltip-id*='cancel']") : null;
-  const isGenerating = !!stopIcon;
-  const editor = document.querySelector('.interactive-input-editor textarea, #conversation textarea, #chat textarea, .chat-input textarea');
-  const isInputDisabled = editor ? editor.disabled : false;
+  const isGenerating = !!cancelBtn || !!stopIcon;
+  const editor = document.querySelector('[aria-label="Message input"][contenteditable="true"]');
+  const isInputDisabled = editor ? editor.getAttribute('contenteditable') === 'false' : false;
   const spinnerRoot = chatArea || document;
   const isSpinning = Array.from(spinnerRoot.querySelectorAll('.codicon-loading, .loading, [class*="animate-spin"], [class*="spinner"], [class*="loader"]')).some(el => {
     if (el.offsetParent === null) return false;
@@ -131,7 +132,7 @@ const IDLE_CHECK_EXPR = `
     hasPending = btns.some(b => { const x = (b.textContent||'').trim().toLowerCase(); return texts.some(t => x === t || x.startsWith(t + ' ')); });
   }
   const isIdle = !isGenerating && !isInputDisabled && !isSpinning && !hasPending;
-  const hasChat = !!document.querySelector('#conversation, #chat, #cascade, .chat-input, .interactive-input-editor');
+  const hasChat = !!document.querySelector('#conversation');
   return { hasChat, isGenerating, isIdle, isSpinning, hasPending };
 })()
 `;
@@ -215,29 +216,23 @@ async function sendViaCDP(text, port) {
 (async function() {
   try {
     const escapedText = ${JSON.stringify(text)};
-    const editors = [...document.querySelectorAll('.interactive-input-editor textarea, #conversation textarea, #chat textarea, .chat-input textarea, [aria-label*="chat input" i] textarea')]
-      .filter(el => !el.className.includes('xterm'));
-    const editor = editors.at(-1);
+    const editor = document.querySelector('[aria-label="Message input"][contenteditable="true"]');
     if (!editor) return { found: false, reason: "no_editor" };
     editor.focus();
-    try { document.execCommand("selectAll", false, null); document.execCommand("delete", false, null); } catch(_) {}
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
     let inserted = false;
     try { inserted = !!document.execCommand("insertText", false, escapedText); } catch(_) {}
     if (!inserted) {
-      if (editor.tagName === 'TEXTAREA') {
-        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-        if (setter) setter.call(editor, escapedText); else editor.value = escapedText;
-      } else { editor.textContent = escapedText; }
+      editor.textContent = escapedText;
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: escapedText }));
     }
     await new Promise(r => setTimeout(r, 150));
-    const submit = document.querySelector("svg.lucide-arrow-right, svg[class*='arrow-right'], svg[class*='send']")?.closest("button");
-    if (submit && !submit.disabled) { setTimeout(() => submit.click(), 10); return { found: true, method: 'button' }; }
-    setTimeout(() => {
-      ['keydown','keypress','keyup'].forEach(type => {
-        editor.dispatchEvent(new KeyboardEvent(type, { bubbles:true, key:"Enter", code:"Enter", keyCode:13, which:13 }));
-      });
-    }, 10);
     return { found: true, method: 'keyboard' };
   } catch(err) { return { found: false, reason: err.message }; }
 })()`,
@@ -513,6 +508,8 @@ async function stopAgent(port) {
 			const res = await Runtime.evaluate({
 				expression: `
 (() => {
+  const cancelBtn = document.querySelector('button[aria-label="Cancel"]');
+  if (cancelBtn) { cancelBtn.click(); return true; }
   const stopIcon = document.querySelector("svg.lucide-square, [data-tooltip-id*='cancel'], [aria-label*='Stop'], [title*='Stop']");
   if (stopIcon) { const btn = stopIcon.closest('button') || stopIcon; btn.click(); return true; }
   return false;
