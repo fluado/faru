@@ -103,6 +103,17 @@ if (schedulerConfig && schedulerConfig.kataDir) {
 	log(`🥋 Dojo enabled — kata dir: ${schedulerConfig.kataDir}`);
 }
 
+// --- CI Auto-Fix (optional) ---
+const ciAutofixConfig = config.ciAutofix || null;
+const ciAutofixEnabled = !!(ciAutofixConfig?.enabled && agentDriver && agentConfig?.workspacePattern);
+const lastSeenRunIds = {}; // dedup: repo → runId
+
+if (ciAutofixEnabled) {
+	log(`🔧 CI auto-fix enabled — workspace: [${agentConfig.workspacePattern}], repos: ${(ciAutofixConfig.repos || []).join(', ')}`);
+} else if (ciAutofixConfig?.enabled) {
+	log(`⚠  CI auto-fix configured but missing agent driver or workspacePattern`);
+}
+
 function resolveGitUser() {
 	try {
 		return execFileSync("git", ["config", "user.name"], {
@@ -1361,6 +1372,175 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
+	// --- CI Auto-Fix Webhook ---
+	if (url.pathname === "/api/ci-failure" && req.method === "POST") {
+		if (!ciAutofixEnabled) {
+			res.writeHead(404, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "CI auto-fix not enabled" }));
+			return;
+		}
+
+		// Auth check
+		const authHeader = req.headers.authorization || "";
+		const expectedSecret = ciAutofixConfig.webhookSecret;
+		if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
+			log(`🚫 CI webhook rejected — invalid auth`);
+			res.writeHead(401, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Unauthorized" }));
+			return;
+		}
+
+		try {
+			const body = await readBody(req);
+			const { repo, runId, sha, commitMessage, branch } = body;
+
+			// Branch guard — only auto-fix main
+			if (branch !== "main") {
+				log(`ℹ️  CI failure on ${repo}/${branch} — skipping (not main)`);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ skipped: true, reason: "not main branch" }));
+				return;
+			}
+
+			// Repo guard
+			const allowedRepos = ciAutofixConfig.repos || [];
+			if (allowedRepos.length > 0 && !allowedRepos.includes(repo)) {
+				log(`ℹ️  CI failure on ${repo} — skipping (not in allowed repos)`);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ skipped: true, reason: "repo not configured" }));
+				return;
+			}
+
+			// Dedup
+			if (lastSeenRunIds[repo] === runId) {
+				log(`ℹ️  CI failure on ${repo} run ${runId} — already processed`);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ skipped: true, reason: "already processed" }));
+				return;
+			}
+			lastSeenRunIds[repo] = runId;
+
+			// Attribution check
+			const match = (commitMessage || "").match(/^\[([^\]]+)\]/);
+			if (!match) {
+				log(`⚠️  CI failure on ${repo} (human commit) — skipping auto-fix`);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ skipped: true, reason: "human commit" }));
+				return;
+			}
+
+			const commitAgent = match[1];
+			if (commitAgent !== agentConfig.workspacePattern) {
+				log(`ℹ️  CI failure on ${repo} from [${commitAgent}] — not my agent [${agentConfig.workspacePattern}]`);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ skipped: true, reason: "different agent" }));
+				return;
+			}
+
+			// Check if dispatch is busy
+			const ds = dispatch.getState();
+			const ks = kata.getKataState ? kata.getKataState() : { status: "idle" };
+			if (ds.status === "running" || ks.status === "running") {
+				log(`⚠️  CI failure on ${repo} from [${commitAgent}] — dispatch busy, skipping`);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ skipped: true, reason: "dispatch busy" }));
+				return;
+			}
+
+			log(`🚨 CI failure on ${repo} from [${commitAgent}] — dispatching auto-fix`);
+
+			// Create synthetic card
+			const repoShort = repo.split("/")[1] || repo;
+			const shortSha = (sha || "").slice(0, 7);
+			const ciSlug = `__ci-fix-${repoShort}-${shortSha}`;
+			const ciFolder = path.join(BACKLOG_DIR, ciSlug);
+
+			if (!fs.existsSync(ciFolder)) {
+				fs.mkdirSync(ciFolder, { recursive: true });
+			}
+
+			const ciCardContent = [
+				"---",
+				`title: "CI Fix: ${repoShort}"`,
+				"type: infra",
+				"status: wip",
+				`created: ${new Date().toISOString().slice(0, 10)}`,
+				`edited: ${new Date().toISOString().slice(0, 10)}`,
+				"---",
+				"",
+				`# CI Fix: ${repoShort}`,
+				"",
+				`> CI failed on ${repo} at commit ${sha}.`,
+				"",
+			].join("\n");
+
+			fs.writeFileSync(path.join(ciFolder, "CARD.md"), ciCardContent, "utf-8");
+			invalidateCardCache();
+
+			const ciCard = {
+				slug: ciSlug,
+				title: `CI Fix: ${repoShort}`,
+				type: "infra",
+				goal: `Fix CI failure on ${repo}`,
+				files: ["CARD.md"],
+			};
+
+			const ciChain = [{
+				skill: "cse-chief-software-engineer",
+				context: [
+					`CI failed on ${repo} at commit ${sha}.`,
+					`Commit: "${commitMessage}"`,
+					`Run \`gh run view ${runId} --repo ${repo} --log-failed\` to read the failure.`,
+					`Diagnose and fix. Commit directly to main.`,
+				].join("\n"),
+			}];
+
+			res.writeHead(202, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ dispatched: true, slug: ciSlug, repo }));
+
+			// Fire and forget
+			dispatch.runDispatch(ciCard, ciChain, agentDriver, agentConfig, {
+				addComment: (s, text, author) => {
+					const folderP = path.join(BACKLOG_DIR, s);
+					if (!fs.existsSync(folderP)) return;
+					const cardMd = path.join(folderP, "CARD.md");
+					const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderP);
+					if (!target) return;
+					const content = fs.readFileSync(target, "utf-8");
+					const now = new Date();
+					const date = now.toISOString().slice(0, 10);
+					const time = now.toTimeString().slice(0, 5);
+					const line = `- **${author || "faru-agent"}** (${date} ${time}): ${text}`;
+					let updated;
+					if (content.includes("## Comments")) {
+						updated = content.trimEnd() + "\n" + line + "\n";
+					} else {
+						updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
+					}
+					fs.writeFileSync(target, updated, "utf-8");
+				},
+				updateCard,
+				skillsDir: agentSkillsDir,
+				backlogDir: BACKLOG_DIR,
+				log,
+				notifyReload: () => notifyLiveReload(),
+			}).then(() => {
+				log(`✅ CI auto-fix dispatch completed for ${repo}`);
+				// Clean up synthetic card
+				try {
+					archiveCard(ciSlug);
+					gitCommit(`ci-fix: archive ${ciSlug}`, [`backlog/${ciSlug}`, `backlog/archive/${ciSlug}`]);
+				} catch (_) {}
+			}).catch(e => {
+				log(`❌ CI auto-fix dispatch crashed: ${e.message}`);
+			});
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: e.message }));
+		}
+		return;
+	}
+
 	// --- SSE Live Reload ---
 	if (url.pathname === "/api/live-reload" && req.method === "GET") {
 		res.writeHead(200, {
@@ -1594,6 +1774,10 @@ const kataFns = {
 	getDispatchState: dispatch.getState,
 };
 
+const ciLabel = ciAutofixEnabled
+	? `ON [${agentConfig.workspacePattern}]`
+	: 'OFF';
+
 server.listen(PORT, () => {
 	console.log(`\n  ┌──────────────────────────────────────┐`);
 	console.log(`  │                                      │`);
@@ -1603,6 +1787,7 @@ server.listen(PORT, () => {
 	console.log(`  │   git sync: ${syncLabel.padEnd(25)}│`);
 	console.log(`  │   auto-archive: ${archiveLabel.padEnd(19)}│`);
 	console.log(`  │   dojo: ${dojoLabel.padEnd(27)}│`);
+	console.log(`  │   ci-autofix: ${ciLabel.padEnd(22)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
 
