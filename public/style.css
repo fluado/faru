@@ -1269,25 +1269,7 @@ body.archive-mode .btn-column-add {
 
 /* === Dispatch === */
 
-/* Queue button in goal banner */
-.btn-dispatch-queue {
-	font-family: var(--font);
-	font-size: 0.8125rem;
-	font-weight: 500;
-	padding: 7px 14px;
-	border-radius: 8px;
-	border: 1px solid transparent;
-	background: transparent;
-	color: var(--text-muted);
-	cursor: pointer;
-	transition: all var(--transition);
-}
-
-.btn-dispatch-queue:hover {
-	background: var(--surface-active);
-	color: var(--text);
-}
-
+/* Queue button in goal banner — inherits size from .btn-archive-toggle */
 .btn-dispatch-queue.queue-active-state {
 	color: var(--amber-text);
 	background: var(--amber-bg);
