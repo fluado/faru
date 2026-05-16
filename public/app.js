@@ -1194,6 +1194,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 setupDispatchModal();
+setupQueueModal();
 
 // --- Dojo ---
 
