@@ -1458,6 +1458,76 @@ body.archive-mode .btn-column-add {
 	gap: 8px;
 }
 
+/* Dispatch Queue */
+
+.dispatch-queue-zone {
+	margin-bottom: 16px;
+	border-top: 1px solid var(--border-subtle);
+	padding-top: 12px;
+}
+
+.dispatch-queue-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.dispatch-queue-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	background: var(--bg);
+	border: 1px solid var(--border-subtle);
+	border-radius: 8px;
+	transition: box-shadow var(--transition);
+}
+
+.dispatch-queue-item:hover {
+	box-shadow: var(--shadow-sm);
+}
+
+.dispatch-queue-item-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.dispatch-queue-item-title {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--text);
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dispatch-queue-item-meta {
+	font-size: 0.6875rem;
+	color: var(--text-faint);
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dispatch-queue-cancel {
+	background: none;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	flex-shrink: 0;
+	transition: all var(--transition);
+}
+
+.dispatch-queue-cancel:hover {
+	color: var(--red-text);
+	background: var(--red-bg);
+}
+
 /* Card dispatch indicator on the board tile */
 .card-dispatch-dot {
 	width: 6px;
