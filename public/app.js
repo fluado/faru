@@ -732,20 +732,27 @@ function updateDispatchUI(s) {
   const btn = document.getElementById('detail-dispatch');
   if (!btn) return;
 
+  const queueCount = s.queue ? s.queue.length : 0;
+
   if (s.status === 'running') {
     const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
-    btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})`;
+    const queueSuffix = queueCount > 0 ? ` · ${queueCount} queued` : '';
+    btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})${queueSuffix}`;
     btn.title = s.liveEvent || `Running ${skillName}`;
     btn.classList.add('dispatch-running');
     btn.disabled = false;
     btn.onclick = abortDispatch;
   } else {
-    btn.textContent = '🤖 Dispatch to Agent';
+    const queueLabel = queueCount > 0 ? `🤖 Dispatch (${queueCount} queued)` : '🤖 Dispatch to Agent';
+    btn.textContent = queueLabel;
     btn.title = '';
     btn.classList.remove('dispatch-running');
     btn.disabled = false;
     btn.onclick = null; // handled by setupDispatchModal
   }
+
+  // Update queue in dispatch modal (if open)
+  renderDispatchQueue(s.queue || []);
 }
 
 async function abortDispatch() {
@@ -911,12 +918,29 @@ function setupDispatchModal() {
     startBtn.textContent = 'Starting…';
 
     try {
-      await fetch(`/api/cards/${encodeURIComponent(dispatchSlug)}/dispatch`, {
+      const res = await fetch(`/api/cards/${encodeURIComponent(dispatchSlug)}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chain: dispatchChain }),
       });
-      closeDispatch();
+      const data = await res.json();
+
+      if (res.status === 409) {
+        // Already queued or already running
+        startBtn.textContent = '▶ Start dispatch';
+        startBtn.disabled = false;
+        alert(data.error || 'This card is already queued or running.');
+        return;
+      }
+
+      if (data.queued) {
+        // Queued, not started immediately
+        startBtn.textContent = `📋 Queued (#${data.position})`;
+        setTimeout(() => closeDispatch(), 1200);
+      } else {
+        closeDispatch();
+      }
+
       await fetchCards();
       pollDispatchStatus();
     } catch (e) {
