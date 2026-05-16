@@ -755,41 +755,111 @@ function updateDispatchUI(s) {
   // Update queue in dispatch modal (if open)
   renderDispatchQueue(s.queue || []);
 
-  // --- Persistent dispatch bar on the board ---
-  const bar = document.getElementById('dispatch-bar');
-  const barActive = document.getElementById('dispatch-bar-active');
-  const barQueue = document.getElementById('dispatch-bar-queue');
-  const barAbort = document.getElementById('dispatch-bar-abort');
-  if (!bar) return;
+  // --- Queue button in goal banner ---
+  const queueBtn = document.getElementById('btn-dispatch-queue');
+  if (!queueBtn) return;
 
-  if (s.status !== 'running' && queueCount === 0) {
-    bar.style.display = 'none';
-    return;
+  const isActive = s.status === 'running';
+  const total = (isActive ? 1 : 0) + queueCount;
+
+  if (total === 0) {
+    queueBtn.style.display = 'none';
+  } else {
+    queueBtn.style.display = '';
+    if (isActive) {
+      queueBtn.textContent = `Queue (${total})`;
+      queueBtn.classList.add('queue-active-state');
+    } else {
+      queueBtn.textContent = `Queue (${queueCount})`;
+      queueBtn.classList.remove('queue-active-state');
+    }
   }
 
-  bar.style.display = '';
+  // --- Queue modal contents (update if open) ---
+  updateQueueModal(s);
+}
+
+let _queueModalSetup = false;
+let _lastDispatchState = null;
+
+function setupQueueModal() {
+  if (_queueModalSetup) return;
+  _queueModalSetup = true;
+
+  const overlay = document.getElementById('queue-overlay');
+  const closeBtn = document.getElementById('queue-close');
+  const queueBtn = document.getElementById('btn-dispatch-queue');
+  if (!overlay) return;
+
+  function closeQueue() { overlay.classList.remove('open'); }
+  closeBtn.addEventListener('click', closeQueue);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeQueue(); });
+
+  queueBtn.addEventListener('click', () => {
+    if (_lastDispatchState) updateQueueModal(_lastDispatchState);
+    overlay.classList.add('open');
+  });
+}
+
+function updateQueueModal(s) {
+  _lastDispatchState = s;
+  const activeEl = document.getElementById('queue-active');
+  const listEl = document.getElementById('queue-list');
+  const emptyEl = document.getElementById('queue-empty');
+  if (!activeEl || !listEl) return;
+
+  const queueCount = s.queue ? s.queue.length : 0;
+  const isActive = s.status === 'running';
+
+  // Empty state
+  if (!isActive && queueCount === 0) {
+    emptyEl.style.display = '';
+    activeEl.innerHTML = '';
+    listEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
 
   // Active dispatch
-  if (s.status === 'running') {
+  if (isActive) {
     const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
     const cardTitle = s.currentCard ? s.currentCard.replace(/^\d{4}-\d{2}-\d{2}-[A-Z]+-/, '').replace(/-/g, ' ') : '';
-    barActive.innerHTML = `<span class="dispatch-bar-dot"></span> <strong>${escapeHtml(cardTitle)}</strong> — ${escapeHtml(skillName)} (${s.chainIndex + 1}/${s.chainLength})`;
-    barAbort.style.display = '';
-    barAbort.onclick = abortDispatch;
+    activeEl.innerHTML = `
+      <div class="queue-active-item">
+        <span class="queue-active-dot"></span>
+        <div class="queue-item-info">
+          <span class="queue-item-title">${escapeHtml(cardTitle)}</span>
+          <span class="queue-item-meta">${escapeHtml(skillName)} · step ${s.chainIndex + 1}/${s.chainLength}</span>
+        </div>
+        <button class="queue-abort-btn" id="queue-abort-btn">⛔ Abort</button>
+      </div>`;
+    activeEl.querySelector('#queue-abort-btn').addEventListener('click', abortDispatch);
   } else {
-    barActive.innerHTML = '';
-    barAbort.style.display = 'none';
+    activeEl.innerHTML = '';
   }
 
   // Queued items
   if (queueCount > 0) {
-    const items = s.queue.map(q => {
-      const title = q.title || q.slug.replace(/^\d{4}-\d{2}-\d{2}-[A-Z]+-/, '').replace(/-/g, ' ');
-      return `<span class="dispatch-bar-queued-item">${escapeHtml(title)}</span>`;
+    listEl.innerHTML = s.queue.map(item => {
+      const skills = (item.chain || []).map(sk => sk.replace(/-/g, ' ')).join(' → ');
+      const ago = timeSince(item.queuedAt);
+      return `
+        <div class="queue-pending-item">
+          <div class="queue-item-info">
+            <span class="queue-item-title">${escapeHtml(item.title)}</span>
+            <span class="queue-item-meta">${escapeHtml(skills)} · ${ago}</span>
+          </div>
+          <button class="queue-cancel-btn" data-slug="${escapeHtml(item.slug)}">✕</button>
+        </div>`;
     }).join('');
-    barQueue.innerHTML = `<span class="dispatch-bar-queue-label">Queue:</span> ${items}`;
+    listEl.querySelectorAll('.queue-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await fetch(`/api/dispatch/queue/${encodeURIComponent(btn.dataset.slug)}`, { method: 'DELETE' });
+        pollDispatchStatus();
+      });
+    });
   } else {
-    barQueue.innerHTML = '';
+    listEl.innerHTML = '';
   }
 }
 
