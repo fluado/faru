@@ -27,6 +27,84 @@ function getState() {
 }
 
 // ---------------------------------------------------------------------------
+// Queue — FIFO, serial execution. Items wait here when dispatch/kata is busy.
+// ---------------------------------------------------------------------------
+
+let dispatchQueue = [];
+
+/**
+ * Add a dispatch to the queue. Rejects if the slug is already running or
+ * already queued. Returns { queued, position?, reason? }.
+ */
+function enqueue(card, chain, driver, agentConfig, fns) {
+	// Reject if this slug is already running
+	if (state.status === "running" && state.card && state.card.slug === card.slug) {
+		fns.log(`⚠️  ${card.slug} is already running — not queued`);
+		return { queued: false, reason: "already-running" };
+	}
+	// Reject if this slug is already in the queue
+	if (dispatchQueue.some((item) => item.card.slug === card.slug)) {
+		fns.log(`⚠️  ${card.slug} is already in the queue — not queued again`);
+		return { queued: false, reason: "already-queued" };
+	}
+
+	const item = { card, chain, driver, agentConfig, fns, queuedAt: new Date().toISOString() };
+	dispatchQueue.push(item);
+	fns.log(`📋 Queued: ${card.slug} (position ${dispatchQueue.length})`);
+	fns.notifyReload();
+
+	// If idle, start draining immediately
+	if (state.status === "idle") {
+		drainQueue().catch((e) => fns.log(`❌ Queue drain error: ${e.message}`));
+	}
+	return { queued: true, position: dispatchQueue.length };
+}
+
+/**
+ * Process queued dispatches one at a time. Called after a dispatch completes
+ * and when a new item is enqueued while idle. Pauses if a kata is running.
+ */
+async function drainQueue() {
+	while (dispatchQueue.length > 0 && state.status === "idle") {
+		const next = dispatchQueue[0];
+
+		// Respect kata state — if a kata started between queue items, wait.
+		// The kata module will call back when it finishes to resume draining.
+		if (next.fns.getKataState && next.fns.getKataState().status === "running") {
+			next.fns.log("⏸  Queue paused — kata is running");
+			return;
+		}
+
+		dispatchQueue.shift();
+		next.fns.notifyReload();
+		await runDispatch(next.card, next.chain, next.driver, next.agentConfig, next.fns);
+	}
+}
+
+/**
+ * Return a serialisable snapshot of the current queue.
+ */
+function getQueue() {
+	return dispatchQueue.map((item, i) => ({
+		position: i + 1,
+		slug: item.card.slug,
+		title: item.card.title,
+		chain: item.chain.map((s) => s.skill),
+		queuedAt: item.queuedAt,
+	}));
+}
+
+/**
+ * Remove a queued item by slug. Returns true if found and removed.
+ */
+function dequeue(slug) {
+	const idx = dispatchQueue.findIndex((item) => item.card.slug === slug);
+	if (idx === -1) return false;
+	dispatchQueue.splice(idx, 1);
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // Skill discovery (dynamic, reads from disk every call)
 // ---------------------------------------------------------------------------
 
@@ -445,6 +523,9 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 	};
 
 	fns.notifyReload();
+
+	// Pick up next queued item (if any)
+	drainQueue().catch((e) => fns.log(`❌ Queue drain error: ${e.message}`));
 }
 
 function abortDispatch() {
@@ -469,4 +550,8 @@ module.exports = {
 	suggestChain,
 	runDispatch,
 	abortDispatch,
+	enqueue,
+	getQueue,
+	dequeue,
+	drainQueue,
 };

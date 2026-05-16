@@ -128,7 +128,7 @@ function getKataState() {
 }
 
 async function runKata(kata, kataDir, driver, agentConfig, fns) {
-	// fns: { log, notifyReload, getDispatchState }
+	// fns: { log, notifyReload, getDispatchState, onComplete? }
 
 	// Guard: don't run if dispatch is active
 	if (fns.getDispatchState().status === "running") {
@@ -197,6 +197,9 @@ async function runKata(kata, kataDir, driver, agentConfig, fns) {
 		kataState = { status: "idle", currentKata: null, startedAt: null };
 		fns.notifyReload();
 
+		// Nudge the dispatch queue in case items are waiting
+		if (fns.onComplete) fns.onComplete();
+
 		return {
 			success: result.success,
 			duration: Date.now() - startTime,
@@ -209,6 +212,7 @@ async function runKata(kata, kataDir, driver, agentConfig, fns) {
 		if (driver.releaseWorkspace) driver.releaseWorkspace();
 		kataState = { status: "idle", currentKata: null, startedAt: null };
 		fns.notifyReload();
+		if (fns.onComplete) fns.onComplete();
 		return { success: false, duration: Date.now() - startTime, durationFormatted: duration };
 	}
 }

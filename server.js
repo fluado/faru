@@ -103,16 +103,6 @@ if (schedulerConfig && schedulerConfig.kataDir) {
 	log(`🥋 Dojo enabled — kata dir: ${schedulerConfig.kataDir}`);
 }
 
-// --- CI Auto-Fix (optional) ---
-const ciAutofixConfig = config.ciAutofix || null;
-const ciAutofixEnabled = !!(ciAutofixConfig?.enabled && agentDriver && agentConfig?.workspacePattern);
-const lastSeenRunIds = {}; // dedup: repo → runId
-
-if (ciAutofixEnabled) {
-	log(`🔧 CI auto-fix enabled — workspace: [${agentConfig.workspacePattern}], repos: ${(ciAutofixConfig.repos || []).join(', ')}`);
-} else if (ciAutofixConfig?.enabled) {
-	log(`⚠  CI auto-fix configured but missing agent driver or workspacePattern`);
-}
 
 function resolveGitUser() {
 	try {
@@ -1194,13 +1184,14 @@ const server = http.createServer(async (req, res) => {
 		const s = dispatch.getState();
 		res.end(JSON.stringify({
 			status: s.status,
-			currentCard: s.card?.slug || null,
-			currentSkill: s.chain[s.currentIndex]?.skill || null,
+			currentCard: s.card ? s.card.slug : null,
+			currentSkill: s.chain[s.currentIndex] ? s.chain[s.currentIndex].skill : null,
 			chainIndex: s.currentIndex,
 			chainLength: s.chain.length,
 			startedAt: s.startedAt,
 			log: s.log,
 			liveEvent: s.liveEvent || null,
+			queue: dispatch.getQueue(),
 		}));
 		return;
 	}
@@ -1233,12 +1224,6 @@ const server = http.createServer(async (req, res) => {
 		if (!agentDriver || !agentConfig) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: "Agent dispatch not configured" }));
-			return;
-		}
-		const ds = dispatch.getState();
-		if (ds.status === "running") {
-			res.writeHead(409, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: "A dispatch is already running", currentCard: ds.card?.slug }));
 			return;
 		}
 		try {
@@ -1279,38 +1264,31 @@ const server = http.createServer(async (req, res) => {
 				body: cardBody,
 			};
 
+			// Queue if dispatch or kata is busy
+			const ds = dispatch.getState();
+			const ks = kata.getKataState();
+			if (ds.status === "running" || ks.status === "running") {
+				const result = dispatch.enqueue(cardData, chain, agentDriver, agentConfig, dispatchFns);
+				if (!result.queued) {
+					// Slug already running or already queued
+					res.writeHead(409, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: result.reason === "already-running"
+						? "This card is already being dispatched"
+						: "This card is already in the queue",
+						reason: result.reason }));
+					return;
+				}
+				res.writeHead(202, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ queued: true, slug, position: result.position }));
+				return;
+			}
+
 			// Respond immediately — dispatch runs async
 			res.writeHead(202, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ dispatched: true, slug, chain: chain.map(s => s.skill) }));
 
 			// Fire and forget
-			dispatch.runDispatch(cardData, chain, agentDriver, agentConfig, {
-				addComment: (s, text, author) => {
-					// Write comment with faru-agent author
-					const folderP = path.join(BACKLOG_DIR, s);
-					if (!fs.existsSync(folderP)) return;
-					const cardMd = path.join(folderP, "CARD.md");
-					const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderP);
-					if (!target) return;
-					const content = fs.readFileSync(target, "utf-8");
-					const now = new Date();
-					const date = now.toISOString().slice(0, 10);
-					const time = now.toTimeString().slice(0, 5);
-					const line = `- **${author || "faru-agent"}** (${date} ${time}): ${text}`;
-					let updated;
-					if (content.includes("## Comments")) {
-						updated = content.trimEnd() + "\n" + line + "\n";
-					} else {
-						updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
-					}
-					fs.writeFileSync(target, updated, "utf-8");
-				},
-				updateCard,
-				skillsDir: agentSkillsDir,
-				backlogDir: BACKLOG_DIR,
-				log,
-				notifyReload: () => notifyLiveReload(),
-			}).catch(e => {
+			dispatch.runDispatch(cardData, chain, agentDriver, agentConfig, dispatchFns).catch(e => {
 				log(`❌ Dispatch crashed: ${e.message}`);
 			});
 		} catch (e) {
@@ -1372,174 +1350,26 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
-	// --- CI Auto-Fix Webhook ---
-	if (url.pathname === "/api/ci-failure" && req.method === "POST") {
-		if (!ciAutofixEnabled) {
-			res.writeHead(404, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: "CI auto-fix not enabled" }));
-			return;
-		}
+	// --- Dispatch Queue Routes ---
 
-		// Auth check
-		const authHeader = req.headers.authorization || "";
-		const expectedSecret = ciAutofixConfig.webhookSecret;
-		if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
-			log(`🚫 CI webhook rejected — invalid auth`);
-			res.writeHead(401, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: "Unauthorized" }));
-			return;
-		}
-
-		try {
-			const body = await readBody(req);
-			const { repo, runId, sha, commitMessage, branch } = body;
-
-			// Branch guard — only auto-fix main
-			if (branch !== "main") {
-				log(`ℹ️  CI failure on ${repo}/${branch} — skipping (not main)`);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ skipped: true, reason: "not main branch" }));
-				return;
-			}
-
-			// Repo guard
-			const allowedRepos = ciAutofixConfig.repos || [];
-			if (allowedRepos.length > 0 && !allowedRepos.includes(repo)) {
-				log(`ℹ️  CI failure on ${repo} — skipping (not in allowed repos)`);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ skipped: true, reason: "repo not configured" }));
-				return;
-			}
-
-			// Dedup
-			if (lastSeenRunIds[repo] === runId) {
-				log(`ℹ️  CI failure on ${repo} run ${runId} — already processed`);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ skipped: true, reason: "already processed" }));
-				return;
-			}
-			lastSeenRunIds[repo] = runId;
-
-			// Attribution check
-			const match = (commitMessage || "").match(/^\[([^\]]+)\]/);
-			if (!match) {
-				log(`⚠️  CI failure on ${repo} (human commit) — skipping auto-fix`);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ skipped: true, reason: "human commit" }));
-				return;
-			}
-
-			const commitAgent = match[1];
-			if (commitAgent !== agentConfig.workspacePattern) {
-				log(`ℹ️  CI failure on ${repo} from [${commitAgent}] — not my agent [${agentConfig.workspacePattern}]`);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ skipped: true, reason: "different agent" }));
-				return;
-			}
-
-			// Check if dispatch is busy
-			const ds = dispatch.getState();
-			const ks = kata.getKataState ? kata.getKataState() : { status: "idle" };
-			if (ds.status === "running" || ks.status === "running") {
-				log(`⚠️  CI failure on ${repo} from [${commitAgent}] — dispatch busy, skipping`);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ skipped: true, reason: "dispatch busy" }));
-				return;
-			}
-
-			log(`🚨 CI failure on ${repo} from [${commitAgent}] — dispatching auto-fix`);
-
-			// Create synthetic card
-			const repoShort = repo.split("/")[1] || repo;
-			const shortSha = (sha || "").slice(0, 7);
-			const ciSlug = `__ci-fix-${repoShort}-${shortSha}`;
-			const ciFolder = path.join(BACKLOG_DIR, ciSlug);
-
-			if (!fs.existsSync(ciFolder)) {
-				fs.mkdirSync(ciFolder, { recursive: true });
-			}
-
-			const ciCardContent = [
-				"---",
-				`title: "CI Fix: ${repoShort}"`,
-				"type: infra",
-				"status: wip",
-				`created: ${new Date().toISOString().slice(0, 10)}`,
-				`edited: ${new Date().toISOString().slice(0, 10)}`,
-				"---",
-				"",
-				`# CI Fix: ${repoShort}`,
-				"",
-				`> CI failed on ${repo} at commit ${sha}.`,
-				"",
-			].join("\n");
-
-			fs.writeFileSync(path.join(ciFolder, "CARD.md"), ciCardContent, "utf-8");
-			invalidateCardCache();
-
-			const ciCard = {
-				slug: ciSlug,
-				title: `CI Fix: ${repoShort}`,
-				type: "infra",
-				goal: `Fix CI failure on ${repo}`,
-				files: ["CARD.md"],
-			};
-
-			const ciChain = [{
-				skill: "cse-chief-software-engineer",
-				context: [
-					`CI failed on ${repo} at commit ${sha}.`,
-					`Commit: "${commitMessage}"`,
-					`Run \`gh run view ${runId} --repo ${repo} --log-failed\` to read the failure.`,
-					`Diagnose and fix. Commit directly to main.`,
-				].join("\n"),
-			}];
-
-			res.writeHead(202, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ dispatched: true, slug: ciSlug, repo }));
-
-			// Fire and forget
-			dispatch.runDispatch(ciCard, ciChain, agentDriver, agentConfig, {
-				addComment: (s, text, author) => {
-					const folderP = path.join(BACKLOG_DIR, s);
-					if (!fs.existsSync(folderP)) return;
-					const cardMd = path.join(folderP, "CARD.md");
-					const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderP);
-					if (!target) return;
-					const content = fs.readFileSync(target, "utf-8");
-					const now = new Date();
-					const date = now.toISOString().slice(0, 10);
-					const time = now.toTimeString().slice(0, 5);
-					const line = `- **${author || "faru-agent"}** (${date} ${time}): ${text}`;
-					let updated;
-					if (content.includes("## Comments")) {
-						updated = content.trimEnd() + "\n" + line + "\n";
-					} else {
-						updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
-					}
-					fs.writeFileSync(target, updated, "utf-8");
-				},
-				updateCard,
-				skillsDir: agentSkillsDir,
-				backlogDir: BACKLOG_DIR,
-				log,
-				notifyReload: () => notifyLiveReload(),
-			}).then(() => {
-				log(`✅ CI auto-fix dispatch completed for ${repo}`);
-				// Clean up synthetic card
-				try {
-					archiveCard(ciSlug);
-					gitCommit(`ci-fix: archive ${ciSlug}`, [`backlog/${ciSlug}`, `backlog/archive/${ciSlug}`]);
-				} catch (_) {}
-			}).catch(e => {
-				log(`❌ CI auto-fix dispatch crashed: ${e.message}`);
-			});
-		} catch (e) {
-			res.writeHead(500, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: e.message }));
-		}
+	if (url.pathname === "/api/dispatch/queue" && req.method === "GET") {
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify(dispatch.getQueue()));
 		return;
 	}
+
+	if (url.pathname.match(/^\/api\/dispatch\/queue\/[^/]+$/) && req.method === "DELETE") {
+		const slug = decodeURIComponent(url.pathname.split("/")[4]);
+		const removed = dispatch.dequeue(slug);
+		if (removed) {
+			log(`🗑  Dequeued: ${slug}`);
+			notifyLiveReload();
+		}
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify({ removed, slug }));
+		return;
+	}
+
 
 	// --- SSE Live Reload ---
 	if (url.pathname === "/api/live-reload" && req.method === "GET") {
@@ -1767,16 +1597,45 @@ const archiveLabel = config.archiveDoneAfterDays
 	: 'OFF';
 const dojoLabel = kataDir && config.runKata ? 'ON' : 'OFF';
 
+// Dispatch functions — shared between direct dispatch and queue
+const dispatchFns = {
+	addComment: (s, text, author) => {
+		const folderP = path.join(BACKLOG_DIR, s);
+		if (!fs.existsSync(folderP)) return;
+		const cardMd = path.join(folderP, "CARD.md");
+		const target = fs.existsSync(cardMd) ? cardMd : findCanonicalFile(folderP);
+		if (!target) return;
+		const content = fs.readFileSync(target, "utf-8");
+		const now = new Date();
+		const date = now.toISOString().slice(0, 10);
+		const time = now.toTimeString().slice(0, 5);
+		const line = `- **${author || "faru-agent"}** (${date} ${time}): ${text}`;
+		let updated;
+		if (content.includes("## Comments")) {
+			updated = content.trimEnd() + "\n" + line + "\n";
+		} else {
+			updated = content.trimEnd() + "\n\n## Comments\n\n" + line + "\n";
+		}
+		fs.writeFileSync(target, updated, "utf-8");
+	},
+	updateCard,
+	skillsDir: agentSkillsDir,
+	backlogDir: BACKLOG_DIR,
+	log,
+	notifyReload: () => notifyLiveReload(),
+	getKataState: kata.getKataState,
+};
+
 // Kata functions — shared between cron scheduler and manual run
 const kataFns = {
 	log,
 	notifyReload: notifyLiveReload,
 	getDispatchState: dispatch.getState,
+	onComplete: () => {
+		// Resume dispatch queue when a kata finishes
+		dispatch.drainQueue().catch((e) => log(`❌ Queue drain after kata: ${e.message}`));
+	},
 };
-
-const ciLabel = ciAutofixEnabled
-	? `ON [${agentConfig.workspacePattern}]`
-	: 'OFF';
 
 server.listen(PORT, () => {
 	console.log(`\n  ┌──────────────────────────────────────┐`);
@@ -1787,7 +1646,6 @@ server.listen(PORT, () => {
 	console.log(`  │   git sync: ${syncLabel.padEnd(25)}│`);
 	console.log(`  │   auto-archive: ${archiveLabel.padEnd(19)}│`);
 	console.log(`  │   dojo: ${dojoLabel.padEnd(27)}│`);
-	console.log(`  │   ci-autofix: ${ciLabel.padEnd(22)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
 
