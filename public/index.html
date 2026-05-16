@@ -25,12 +25,7 @@
     <span class="goal-label">This week</span>
     <span class="goal-text" id="goal-text" contenteditable="true" data-placeholder="Set a weekly goal…"></span>
     <button id="btn-toggle-archive" class="btn-archive-toggle">Archive</button>
-  </div>
-
-  <div class="dispatch-bar" id="dispatch-bar" style="display:none">
-    <div class="dispatch-bar-active" id="dispatch-bar-active"></div>
-    <div class="dispatch-bar-queue" id="dispatch-bar-queue"></div>
-    <button class="dispatch-bar-abort" id="dispatch-bar-abort" title="Abort dispatch">⛔</button>
+    <button id="btn-dispatch-queue" class="btn-dispatch-queue" style="display:none">Queue</button>
   </div>
 
   <main class="board" id="board">
@@ -290,6 +285,21 @@
         <button class="btn" id="dispatch-cancel">Cancel</button>
         <button class="btn btn-primary" id="dispatch-start" disabled>▶ Start dispatch</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Queue Modal -->
+  <div class="modal-overlay" id="queue-overlay">
+    <div class="modal modal-queue">
+      <div class="modal-header">
+        <h3 id="queue-modal-title">Dispatch Queue</h3>
+        <button class="modal-close" id="queue-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="queue-active" id="queue-active"></div>
+      <div class="queue-list" id="queue-list"></div>
+      <div class="queue-empty" id="queue-empty">No dispatches running or queued.</div>
     </div>
   </div>
 
