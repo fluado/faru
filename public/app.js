@@ -733,8 +733,9 @@ function updateDispatchUI(s) {
   if (!btn) return;
 
   const queueCount = s.queue ? s.queue.length : 0;
+  const isThisCardRunning = s.status === 'running' && s.currentCard === currentDetailSlug;
 
-  if (s.status === 'running') {
+  if (isThisCardRunning) {
     const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
     const queueSuffix = queueCount > 0 ? ` · ${queueCount} queued` : '';
     btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})${queueSuffix}`;
@@ -747,7 +748,6 @@ function updateDispatchUI(s) {
     btn.title = '';
     btn.classList.remove('dispatch-running');
     btn.disabled = false;
-    btn.onclick = null; // handled by setupDispatchModal
   }
 
   // Update queue in dispatch modal (if open)
