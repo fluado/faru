@@ -741,7 +741,6 @@ function updateDispatchUI(s) {
     btn.title = s.liveEvent || `Running ${skillName}`;
     btn.classList.add('dispatch-running');
     btn.disabled = false;
-    btn.onclick = abortDispatch;
   } else {
     const queueLabel = queueCount > 0 ? `🤖 Dispatch (${queueCount} queued)` : '🤖 Dispatch to Agent';
     btn.textContent = queueLabel;
@@ -999,13 +998,8 @@ function setupDispatchModal() {
     }
   });
 
-  // Dispatch button in card detail — opens the dispatch modal
+  // Dispatch button in card detail — always opens the dispatch modal
   dispatchBtn.addEventListener('click', async () => {
-    if (lastDispatchStatus === 'running') {
-      abortDispatch();
-      return;
-    }
-
     if (!currentDetailSlug) return;
     dispatchSlug = currentDetailSlug;
 
