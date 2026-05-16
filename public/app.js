@@ -1090,14 +1090,8 @@ function setupDispatchModal() {
         return;
       }
 
-      if (data.queued) {
-        // Queued, not started immediately
-        startBtn.textContent = `📋 Queued (#${data.position})`;
-        setTimeout(() => closeDispatch(), 1200);
-      } else {
-        closeDispatch();
-      }
-
+      closeDispatch();
+      closeDetail();
       await fetchCards();
       pollDispatchStatus();
     } catch (e) {
