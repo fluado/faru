@@ -764,6 +764,55 @@ async function abortDispatch() {
   } catch (_) {}
 }
 
+// Render the dispatch queue in the modal
+function renderDispatchQueue(queue) {
+  const zone = document.getElementById('dispatch-queue-zone');
+  const list = document.getElementById('dispatch-queue-list');
+  if (!zone || !list) return;
+
+  if (!queue || queue.length === 0) {
+    zone.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  zone.style.display = '';
+  list.innerHTML = queue.map(item => {
+    const skills = (item.chain || []).map(s => s.replace(/-/g, ' ')).join(' → ');
+    const ago = timeSince(item.queuedAt);
+    return `
+      <div class="dispatch-queue-item">
+        <div class="dispatch-queue-item-info">
+          <span class="dispatch-queue-item-title">${escapeHtml(item.title)}</span>
+          <span class="dispatch-queue-item-meta">${escapeHtml(skills)} · queued ${ago}</span>
+        </div>
+        <button class="dispatch-queue-cancel" data-slug="${escapeHtml(item.slug)}" title="Cancel">✕</button>
+      </div>
+    `;
+  }).join('');
+
+  // Cancel buttons
+  list.querySelectorAll('.dispatch-queue-cancel').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const slug = btn.dataset.slug;
+      try {
+        await fetch(`/api/dispatch/queue/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+        pollDispatchStatus();
+      } catch (_) {}
+    });
+  });
+}
+
+function timeSince(isoStr) {
+  const ms = Date.now() - new Date(isoStr).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
+
 // Render dispatch chain in the modal
 let dragFromIndex = null;
 
