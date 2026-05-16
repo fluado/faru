@@ -729,29 +729,68 @@ async function pollDispatchStatus() {
 }
 
 function updateDispatchUI(s) {
+  // --- Card detail button ---
   const btn = document.getElementById('detail-dispatch');
-  if (!btn) return;
-
   const queueCount = s.queue ? s.queue.length : 0;
-  const isThisCardRunning = s.status === 'running' && s.currentCard === currentDetailSlug;
 
-  if (isThisCardRunning) {
-    const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
-    const queueSuffix = queueCount > 0 ? ` · ${queueCount} queued` : '';
-    btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})${queueSuffix}`;
-    btn.title = s.liveEvent || `Running ${skillName}`;
-    btn.classList.add('dispatch-running');
-    btn.disabled = false;
-  } else {
-    const queueLabel = queueCount > 0 ? `🤖 Dispatch (${queueCount} queued)` : '🤖 Dispatch to Agent';
-    btn.textContent = queueLabel;
-    btn.title = '';
-    btn.classList.remove('dispatch-running');
-    btn.disabled = false;
+  if (btn) {
+    const isThisCardRunning = s.status === 'running' && s.currentCard === currentDetailSlug;
+
+    if (isThisCardRunning) {
+      const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
+      const queueSuffix = queueCount > 0 ? ` · ${queueCount} queued` : '';
+      btn.textContent = `⏳ ${skillName} (${s.chainIndex + 1}/${s.chainLength})${queueSuffix}`;
+      btn.title = s.liveEvent || `Running ${skillName}`;
+      btn.classList.add('dispatch-running');
+      btn.disabled = false;
+    } else {
+      const queueLabel = queueCount > 0 ? `🤖 Dispatch (${queueCount} queued)` : '🤖 Dispatch to Agent';
+      btn.textContent = queueLabel;
+      btn.title = '';
+      btn.classList.remove('dispatch-running');
+      btn.disabled = false;
+    }
   }
 
   // Update queue in dispatch modal (if open)
   renderDispatchQueue(s.queue || []);
+
+  // --- Persistent dispatch bar on the board ---
+  const bar = document.getElementById('dispatch-bar');
+  const barActive = document.getElementById('dispatch-bar-active');
+  const barQueue = document.getElementById('dispatch-bar-queue');
+  const barAbort = document.getElementById('dispatch-bar-abort');
+  if (!bar) return;
+
+  if (s.status !== 'running' && queueCount === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = '';
+
+  // Active dispatch
+  if (s.status === 'running') {
+    const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '...';
+    const cardTitle = s.currentCard ? s.currentCard.replace(/^\d{4}-\d{2}-\d{2}-[A-Z]+-/, '').replace(/-/g, ' ') : '';
+    barActive.innerHTML = `<span class="dispatch-bar-dot"></span> <strong>${escapeHtml(cardTitle)}</strong> — ${escapeHtml(skillName)} (${s.chainIndex + 1}/${s.chainLength})`;
+    barAbort.style.display = '';
+    barAbort.onclick = abortDispatch;
+  } else {
+    barActive.innerHTML = '';
+    barAbort.style.display = 'none';
+  }
+
+  // Queued items
+  if (queueCount > 0) {
+    const items = s.queue.map(q => {
+      const title = q.title || q.slug.replace(/^\d{4}-\d{2}-\d{2}-[A-Z]+-/, '').replace(/-/g, ' ');
+      return `<span class="dispatch-bar-queued-item">${escapeHtml(title)}</span>`;
+    }).join('');
+    barQueue.innerHTML = `<span class="dispatch-bar-queue-label">Queue:</span> ${items}`;
+  } else {
+    barQueue.innerHTML = '';
+  }
 }
 
 async function abortDispatch() {
