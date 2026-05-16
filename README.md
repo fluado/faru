@@ -364,22 +364,6 @@ After each skill completes, faru can send a follow-up prompt in the same session
 | `"custom prompt"` | Sends your custom prompt instead |
 | omitted / `false` | No verification pass |
 
-#### Dispatch Queue
-
-When a dispatch or kata is already running, new dispatches are queued automatically instead of being rejected. The queue is FIFO — items execute serially, one at a time.
-
-- A **Queue** button appears in the goal banner when dispatches are active or queued. Click it to see the running dispatch and pending queue with abort/cancel controls
-- Duplicate slugs are rejected — a card can't be queued if it's already running or already in the queue
-- The queue pauses when a kata is running and resumes automatically when the kata finishes
-- Aborting a running dispatch does **not** drain the queue — abort means stop everything
-
-Queue management is also available via API:
-
-| Endpoint | Description |
-|---|---|
-| `GET /api/dispatch/queue` | Returns the current queue |
-| `DELETE /api/dispatch/queue/:slug` | Removes a queued item by slug |
-
 ### Dojo — Kata Scheduler (optional)
 
 <p align="center">
