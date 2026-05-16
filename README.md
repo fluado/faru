@@ -341,6 +341,7 @@ Act like a ...
 | `produces` | Glob pattern for the artifact this skill creates. If a card already contains a matching file, the skill is skipped |
 | `needs` | Comma-separated glob patterns for files this skill requires from the card folder. Only matching files are included in the prompt. If omitted, all card files are included (backward compatible). Previous skill output is handed off automatically via file-diff detection |
 | `excludeTypes` | Comma-separated card categories to skip (e.g. `legal, ops`) |
+| `includeTypes` | Comma-separated card categories to restrict this skill to (e.g. `product`). When set, the skill is only suggested for these types |
 | `default` | Set to `true` to mark this skill as the fallback when no other skills match |
 
 When dispatching a card, you chain one or more skills — each runs in a fresh chat session. The driver interface is pluggable — add your own under `drivers/`.
@@ -362,6 +363,22 @@ After each skill completes, faru can send a follow-up prompt in the same session
 | `true` | Sends a generic audit prompt after each skill |
 | `"custom prompt"` | Sends your custom prompt instead |
 | omitted / `false` | No verification pass |
+
+#### Dispatch Queue
+
+When a dispatch or kata is already running, new dispatches are queued automatically instead of being rejected. The queue is FIFO — items execute serially, one at a time.
+
+- A **Queue** button appears in the goal banner when dispatches are active or queued. Click it to see the running dispatch and pending queue with abort/cancel controls
+- Duplicate slugs are rejected — a card can't be queued if it's already running or already in the queue
+- The queue pauses when a kata is running and resumes automatically when the kata finishes
+- Aborting a running dispatch does **not** drain the queue — abort means stop everything
+
+Queue management is also available via API:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/dispatch/queue` | Returns the current queue |
+| `DELETE /api/dispatch/queue/:slug` | Removes a queued item by slug |
 
 ### Dojo — Kata Scheduler (optional)
 
@@ -465,6 +482,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 ## Features
 
 - **Agent dispatch** — send cards to an AI coding agent via a pluggable driver (ships with Antigravity, Cursor, and Claude Code drivers). Skills are markdown files that self-describe their chain ordering via frontmatter. After each skill completes, an optional verification pass prompts the agent to audit its own work before moving on
+- **Dispatch queue** — when the agent is busy, new dispatches queue up automatically. FIFO serial execution, one at a time. Queue status is visible from the board via the Queue button, with abort and cancel controls
 - **Dojo (kata scheduler)** — run recurring agent tasks on cron schedules. Kata are markdown prompts with frontmatter scheduling. Sweep reports appear in a timeline UI where you can promote findings to cards or mute them. Hot-reloads cron schedules when kata files change
 - **Weekly Goal** — set a high-level focus via an editable board banner that saves directly to `weekly-goal.md` in your project root
 - **Card detail view** — click a card to open a full modal with editable metadata sidebar (type, status, assigned), progress bar, milestone checklist, file browser, and comments thread
