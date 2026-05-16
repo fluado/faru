@@ -139,6 +139,9 @@ function listSkills(skillsDir) {
 				model: meta.model || null,
 				phase: meta.phase ? Number(meta.phase) : null,
 				produces: meta.produces || null,
+				includeTypes: meta.includeTypes
+					? meta.includeTypes.split(",").map((s) => s.trim())
+					: [],
 				excludeTypes: meta.excludeTypes
 					? meta.excludeTypes.split(",").map((s) => s.trim())
 					: [],
@@ -171,6 +174,7 @@ function deriveSkillName(id, body) {
 // Skills self-describe their chain behaviour:
 //   phase:        <number>  — ordering in the chain (lower = earlier)
 //   produces:     <glob>    — skip this skill if a card file matches the glob
+//   includeTypes: <csv>     — only suggest for these card categories
 //   excludeTypes: <csv>     — skip for these card categories
 //   default:      true      — include as fallback when chain would be empty
 // ---------------------------------------------------------------------------
@@ -183,6 +187,10 @@ function suggestChain(card, availableSkills) {
 
 	const chain = chainable
 		.filter((skill) => {
+			// Skip if card type is not in the include list (when specified)
+			if (skill.includeTypes.length > 0 && !skill.includeTypes.includes(card.type)) {
+				return false;
+			}
 			// Skip if card type is excluded
 			if (skill.excludeTypes.length > 0 && skill.excludeTypes.includes(card.type)) {
 				return false;
