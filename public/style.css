@@ -1269,88 +1269,147 @@ body.archive-mode .btn-column-add {
 
 /* === Dispatch === */
 
-/* Persistent dispatch status bar */
-.dispatch-bar {
-	display: flex;
-	align-items: center;
-	gap: 16px;
-	padding: 10px 28px;
-	background: rgba(255, 255, 255, 0.72);
-	backdrop-filter: blur(20px) saturate(180%);
-	-webkit-backdrop-filter: blur(20px) saturate(180%);
-	border-bottom: 1px solid var(--border);
+/* Queue button in goal banner */
+.btn-dispatch-queue {
+	font-family: var(--font);
 	font-size: 0.8125rem;
+	font-weight: 500;
+	padding: 7px 14px;
+	border-radius: 8px;
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all var(--transition);
+}
+
+.btn-dispatch-queue:hover {
+	background: var(--surface-active);
 	color: var(--text);
-	max-width: 100%;
 }
 
-.dispatch-bar-active {
+.btn-dispatch-queue.queue-active-state {
+	color: var(--amber-text);
+	background: var(--amber-bg);
+}
+
+.btn-dispatch-queue.queue-active-state:hover {
+	background: var(--amber-bg);
+	filter: brightness(0.97);
+}
+
+/* Queue modal */
+.modal-queue {
+	max-width: 440px;
+	padding: 24px;
+}
+
+.queue-active {
+	margin-bottom: 8px;
+}
+
+.queue-active-item {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	flex-shrink: 0;
-	font-size: 0.8125rem;
+	gap: 10px;
+	padding: 12px 14px;
+	background: var(--amber-bg);
+	border-radius: var(--radius);
+	margin-bottom: 4px;
 }
 
-.dispatch-bar-active strong {
-	font-weight: 600;
-	text-transform: capitalize;
-}
-
-.dispatch-bar-dot {
-	width: 7px;
-	height: 7px;
+.queue-active-dot {
+	width: 8px;
+	height: 8px;
 	border-radius: 50%;
 	background: var(--amber);
-	display: inline-block;
 	flex-shrink: 0;
 	animation: dispatchPulse 1.5s ease-in-out infinite;
 }
 
-.dispatch-bar-queue {
-	display: flex;
-	align-items: center;
-	gap: 6px;
+.queue-item-info {
 	flex: 1;
 	min-width: 0;
-	overflow: hidden;
 }
 
-.dispatch-bar-queue-label {
-	font-size: 0.6875rem;
+.queue-item-title {
+	font-size: 0.8125rem;
 	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
-	color: var(--text-faint);
-	flex-shrink: 0;
-}
-
-.dispatch-bar-queued-item {
-	font-size: 0.75rem;
-	font-weight: 500;
-	color: var(--text-muted);
-	background: var(--surface-active);
-	padding: 2px 10px;
-	border-radius: 6px;
-	white-space: nowrap;
+	color: var(--text);
+	display: block;
 	text-transform: capitalize;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-.dispatch-bar-abort {
+.queue-item-meta {
+	font-size: 0.6875rem;
+	color: var(--text-muted);
+	display: block;
+}
+
+.queue-abort-btn {
+	font-family: var(--font);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	padding: 4px 10px;
+	border-radius: 6px;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	cursor: pointer;
+	flex-shrink: 0;
+	transition: all var(--transition);
+}
+
+.queue-abort-btn:hover {
+	background: var(--red-bg);
+	color: var(--red-text);
+}
+
+.queue-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.queue-pending-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	background: var(--bg);
+	border-radius: var(--radius);
+	transition: box-shadow var(--transition);
+}
+
+.queue-pending-item:hover {
+	box-shadow: var(--shadow-sm);
+}
+
+.queue-cancel-btn {
 	background: none;
 	border: none;
+	color: var(--text-faint);
 	cursor: pointer;
-	font-size: 0.8125rem;
 	padding: 4px 8px;
 	border-radius: 6px;
-	transition: all var(--transition);
+	font-size: 0.75rem;
 	flex-shrink: 0;
-	opacity: 0.5;
+	transition: all var(--transition);
 }
 
-.dispatch-bar-abort:hover {
+.queue-cancel-btn:hover {
+	color: var(--red-text);
 	background: var(--red-bg);
-	opacity: 1;
+}
+
+.queue-empty {
+	text-align: center;
+	color: var(--text-faint);
+	font-size: 0.8125rem;
+	padding: 32px 16px;
 }
 
 .btn-dispatch:disabled {
