@@ -258,12 +258,17 @@ async function sendViaCDP(text, port) {
 						windowsVirtualKeyCode: 13,
 						nativeVirtualKeyCode: 13,
 					});
-				} catch (_) {}
+				} catch (enterErr) {
+					console.log(`  [cdp] ⚠️ Enter keypress failed: ${enterErr.message}`);
+				}
 				await client.close();
 				return;
 			}
-			if (val)
-				errors.push(`${target.title?.substring(0, 25)}: ${val.reason}`);
+			if (val) {
+				const reason = `${target.title?.substring(0, 25)}: ${val.reason}`;
+				console.log(`  [cdp] ⚠️ Editor not found: ${reason}`);
+				errors.push(reason);
+			}
 			await client.close();
 		} catch (e) {
 			if (e.message.includes("Promise was collected")) {
@@ -318,12 +323,26 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 						if (val.isIdle && !val.isGenerating) {
 							idleCount++;
 							if (idleCount >= 3) {
+								// Sentinel expected: only accept idle if sentinel exists
 								if (sentinelPath) {
 									try {
 										if (fs.existsSync(sentinelPath)) return true;
 									} catch (_) {}
+									// Chat-diff proof: did agent produce any output?
+									const currentChat = await getChatText(port);
+									if (currentChat && currentChat !== lastChatSnapshot) {
+										// Agent produced output but no sentinel — keep polling,
+										// it may still be working (e.g. multi-step commit)
+										console.log(`  [wait] Agent produced output but sentinel not found — continuing to poll`);
+										idleCount = 0;
+									} else {
+										console.log(`  [wait] ⚠️ Agent idle but no output detected — continuing to poll`);
+										idleCount = 0;
+									}
+								} else {
+									// No sentinel expected: accept idle-alone (original ae5dede logic)
+									return true;
 								}
-								return true;
 							}
 						} else {
 							idleCount = 0;
@@ -335,6 +354,46 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 		} catch (_) {}
 
 		await sleep(3000);
+	}
+	return false;
+}
+
+// Helper to grab current chat text for diff comparison
+async function getChatText(port) {
+	const targets = await resolveTargets(port);
+	for (const target of targets) {
+		try {
+			const client = await CDP({ target: target.webSocketDebuggerUrl });
+			const { Runtime } = client;
+			await Runtime.enable();
+			const r = await Runtime.evaluate({
+				expression: CHAT_EXTRACT_EXPR,
+				awaitPromise: true,
+				returnByValue: true,
+			});
+			const val = r?.result?.value;
+			await client.close();
+			if (val && val.length > 0) return val;
+		} catch (_) {}
+	}
+	return null;
+}
+
+// Helper to check if the editor element exists
+async function editorExists(port) {
+	const targets = await resolveTargets(port);
+	for (const target of targets) {
+		try {
+			const client = await CDP({ target: target.webSocketDebuggerUrl });
+			const { Runtime } = client;
+			await Runtime.enable();
+			const r = await Runtime.evaluate({
+				expression: `!!document.querySelector('[aria-label="Message input"][contenteditable="true"]')`,
+				returnByValue: true,
+			});
+			await client.close();
+			if (r?.result?.value) return true;
+		} catch (_) {}
 	}
 	return false;
 }
@@ -385,7 +444,18 @@ async function triggerNewChat(port) {
 		});
 
 		await client.close();
-		return true;
+
+		// Step 3: Verify the editor element exists
+		await sleep(1500);
+		if (await editorExists(port)) return true;
+
+		// Retry once after 2s
+		console.log(`  [newChat] Editor not found after Cmd+E/Cmd+Shift+L — retrying in 2s`);
+		await sleep(2000);
+		if (await editorExists(port)) return true;
+
+		console.log(`  [newChat] ⚠️ Editor still not found after retry`);
+		return false;
 	} catch (_) {}
 	return false;
 }
@@ -534,6 +604,8 @@ module.exports = {
 		activeWorkspacePattern = config.workspacePattern || null;
 		await snapshotChatState(port);
 		await sendViaCDP(prompt, port);
+		// Capture baseline for chat-diff after send
+		await snapshotChatState(port);
 
 		// Race: sentinel file vs idle detection vs timeout
 		const completed = await waitForCompletion(port, timeout, sentinelPath);
@@ -541,11 +613,25 @@ module.exports = {
 			await stopAgent(port);
 			return { success: false, output: "Timeout — agent did not finish within " + (config.timeoutMinutes || 15) + " minutes" };
 		}
-		// Clean up sentinel
+
+		// Kata result honesty: sentinel expected but not found
+		const fs = require("fs");
+		let sentinelMissing = false;
 		if (sentinelPath) {
-			try { require("fs").unlinkSync(sentinelPath); } catch (_) {}
+			try {
+				if (fs.existsSync(sentinelPath)) {
+					fs.unlinkSync(sentinelPath);
+				} else {
+					sentinelMissing = true;
+				}
+			} catch (_) {
+				sentinelMissing = true;
+			}
 		}
 		const output = await getLatestResponse(port);
+		if (sentinelMissing) {
+			return { success: true, output: `⚠️ Sentinel file not found — agent may not have completed the task.\n${output}` };
+		}
 		return { success: true, output };
 	},
 
