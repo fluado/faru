@@ -211,38 +211,37 @@ async function sendViaCDP(text, port) {
 			const { Runtime, Input } = client;
 			await Runtime.enable();
 
+			// Step 1: Check editor exists and focus it
 			const res = await Runtime.evaluate({
 				expression: `
-(async function() {
-  try {
-    const escapedText = ${JSON.stringify(text)};
-    const editor = document.querySelector('[aria-label="Message input"][contenteditable="true"]');
-    if (!editor) return { found: false, reason: "no_editor" };
-    editor.focus();
-    const sel = window.getSelection();
-    if (sel) {
-      const range = document.createRange();
-      range.selectNodeContents(editor);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-    let inserted = false;
-    try { inserted = !!document.execCommand("insertText", false, escapedText); } catch(_) {}
-    if (!inserted) {
-      editor.textContent = escapedText;
-      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: escapedText }));
-    }
-    await new Promise(r => setTimeout(r, 150));
-    return { found: true, method: 'keyboard' };
-  } catch(err) { return { found: false, reason: err.message }; }
+(function() {
+  const editor = document.querySelector('[aria-label="Message input"][contenteditable="true"]');
+  if (!editor) return { found: false, reason: "no_editor" };
+  editor.focus();
+  return { found: true, hasContent: (editor.innerText || '').trim().length > 0 };
 })()`,
-				awaitPromise: true,
 				returnByValue: true,
 			});
 
 			const val = res?.result?.value;
 			if (val?.found) {
-				console.log(`  [cdp] editor found — sending Enter`);
+				// Step 2: Clear any stale content via Cmd+A → Backspace
+				if (val.hasContent) {
+					console.log(`  [cdp] editor has stale content — clearing via Cmd+A → Backspace`);
+					await Input.dispatchKeyEvent({ type: "keyDown", key: "a", code: "KeyA", windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: 4 });
+					await Input.dispatchKeyEvent({ type: "keyUp", key: "a", code: "KeyA", windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65, modifiers: 4 });
+					await sleep(100);
+					await Input.dispatchKeyEvent({ type: "keyDown", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+					await Input.dispatchKeyEvent({ type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+					await sleep(200);
+				}
+
+				// Step 3: Insert prompt text via CDP Input.insertText
+				await Input.insertText({ text });
+				await sleep(150);
+				console.log(`  [cdp] prompt inserted (${text.length} chars) — sending Enter`);
+
+				// Step 4: Press Enter to submit
 				await sleep(50);
 				try {
 					await Input.dispatchKeyEvent({
