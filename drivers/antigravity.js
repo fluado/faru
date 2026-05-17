@@ -242,6 +242,7 @@ async function sendViaCDP(text, port) {
 
 			const val = res?.result?.value;
 			if (val?.found) {
+				console.log(`  [cdp] editor found — sending Enter`);
 				await sleep(50);
 				try {
 					await Input.dispatchKeyEvent({
@@ -290,7 +291,9 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 	const fs = require("fs");
 	const start = Date.now();
 	let idleCount = 0;
+	let pollCount = 0;
 
+	console.log(`  [wait] starting — sentinel: ${sentinelPath || "none"}, timeout: ${Math.round(timeoutMs/60000)}m`);
 	// Give the agent a few seconds to start working before polling
 	await sleep(5000);
 
@@ -305,6 +308,7 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 		}
 
 		// Fallback: check if agent is idle via UI
+		pollCount++;
 		try {
 			const targets = await resolveTargets(port);
 			for (const target of targets) {
@@ -322,6 +326,9 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 					if (val?.hasChat) {
 						if (val.isIdle && !val.isGenerating) {
 							idleCount++;
+							if (pollCount % 10 === 1 || idleCount >= 2) {
+								console.log(`  [wait] poll #${pollCount} — idle ${idleCount}/3, elapsed ${Math.round((Date.now()-start)/1000)}s`);
+							}
 							if (idleCount >= 3) {
 								// Sentinel expected: only accept idle if sentinel exists
 								if (sentinelPath) {
@@ -345,6 +352,9 @@ async function waitForCompletion(port, timeoutMs, sentinelPath) {
 								}
 							}
 						} else {
+							if (idleCount > 0) {
+								console.log(`  [wait] poll #${pollCount} — agent active (was idle ${idleCount}), resetting`);
+							}
 							idleCount = 0;
 						}
 						break;
@@ -602,14 +612,35 @@ module.exports = {
 		const port = config.cdpPort;
 		const timeout = (config.timeoutMinutes || 15) * 60_000;
 		activeWorkspacePattern = config.workspacePattern || null;
+		console.log(`  [driver] execute() start — sentinel: ${sentinelPath || "none"}, timeout: ${config.timeoutMinutes || 15}m`);
+		const preSendSnapshot = lastChatSnapshot;
 		await snapshotChatState(port);
 		await sendViaCDP(prompt, port);
-		// Capture baseline for chat-diff after send
+		console.log(`  [driver] prompt sent via CDP — verifying delivery`);
+
+		// Verify the prompt actually landed in the chat
+		await sleep(2000);
+		const postSend = await getChatText(port);
+		if (postSend && preSendSnapshot && postSend === preSendSnapshot) {
+			// Chat didn't change — prompt may not have been delivered. Retry once.
+			console.log(`  [driver] ⚠️ chat unchanged after send — retrying once`);
+			await sendViaCDP(prompt, port);
+			await sleep(2000);
+			const retryCheck = await getChatText(port);
+			if (retryCheck && retryCheck === preSendSnapshot) {
+				console.log(`  [driver] ❌ prompt not visible after retry — aborting`);
+				return { success: false, output: "Prompt was not delivered to the agent — chat text unchanged after send + retry" };
+			}
+		}
+		console.log(`  [driver] ✓ prompt delivery confirmed`);
+
+		// Capture baseline for chat-diff comparison during polling
 		await snapshotChatState(port);
 
 		// Race: sentinel file vs idle detection vs timeout
 		const completed = await waitForCompletion(port, timeout, sentinelPath);
 		if (!completed) {
+			console.log(`  [driver] ⏱️ waitForCompletion returned false — timeout`);
 			await stopAgent(port);
 			return { success: false, output: "Timeout — agent did not finish within " + (config.timeoutMinutes || 15) + " minutes" };
 		}
@@ -620,8 +651,10 @@ module.exports = {
 		if (sentinelPath) {
 			try {
 				if (fs.existsSync(sentinelPath)) {
+					console.log(`  [driver] ✅ sentinel found — cleaning up`);
 					fs.unlinkSync(sentinelPath);
 				} else {
+					console.log(`  [driver] ⚠️ completion declared but sentinel not found`);
 					sentinelMissing = true;
 				}
 			} catch (_) {
