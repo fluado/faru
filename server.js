@@ -1459,18 +1459,18 @@ fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
 			if (rest) byDir[dir].push(rest);
 		}
 
+		// Never emit filenames in the commit subject. fs.watch fires on
+		// any path under DOCS_ROOT including untracked/gitignored siblings,
+		// whose basenames would otherwise ride along on whatever `git add .`
+		// actually stages and leak into the (possibly public) origin.
 		const dirs = Object.keys(byDir);
 		let msg;
 		if (dirs.length === 1) {
 			const dir = dirs[0];
-			const inner = byDir[dir];
-			if (inner.length === 0) {
-				msg = `update ${dir}`;
-			} else if (inner.length <= 2) {
-				msg = `${dir}: update ${inner.map((f) => path.basename(f)).join(", ")}`;
-			} else {
-				msg = `${dir}: update ${inner.length} files`;
-			}
+			const n = byDir[dir].length;
+			msg = n === 0
+				? `update ${dir}`
+				: `${dir}: update ${n} file${n === 1 ? "" : "s"}`;
 		} else {
 			msg = `update ${dirs.join(", ")}`;
 		}
