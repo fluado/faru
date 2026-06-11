@@ -1385,7 +1385,7 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	// --- SPA Routes (history-mode) ---
-	if (url.pathname === "/board" || url.pathname === "/dojo") {
+	if (url.pathname === "/board" || url.pathname === "/dojo" || url.pathname.startsWith("/card/")) {
 		serveStatic(res, path.join(__dirname, "public", "index.html"));
 		return;
 	}

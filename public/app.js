@@ -244,8 +244,11 @@ function setupNewCardModal() {
 
 let currentDetailSlug = null;
 
-function openDetail(card) {
+function openDetail(card, pushState = true) {
   currentDetailSlug = card.slug;
+  if (pushState) {
+    history.pushState({ view: 'board', card: card.slug }, '', `/card/${encodeURIComponent(card.slug)}`);
+  }
   const overlay = document.getElementById('detail-overlay');
   const titleEl = document.getElementById('detail-title');
   titleEl.textContent = card.title;
@@ -404,9 +407,13 @@ function openDetail(card) {
   overlay.classList.add('open');
 }
 
-function closeDetail() {
+function closeDetail(pushState = true) {
   currentDetailSlug = null;
   document.getElementById('detail-overlay').classList.remove('open');
+  if (pushState && window.location.pathname.startsWith('/card/')) {
+    const target = isDojoView ? '/dojo' : '/';
+    history.pushState({ view: isDojoView ? 'dojo' : 'board' }, '', target);
+  }
 }
 
 function setupDetailModal() {
@@ -418,7 +425,7 @@ function setupDetailModal() {
   const titleEl = document.getElementById('detail-title');
   const openBtn = document.getElementById('detail-open');
 
-  close.addEventListener('click', closeDetail);
+  close.addEventListener('click', () => closeDetail());
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeDetail();
@@ -588,8 +595,9 @@ function setupDetailModal() {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     document.getElementById('modal-overlay').classList.remove('open');
-    document.getElementById('detail-overlay').classList.remove('open');
-    currentDetailSlug = null;
+    if (currentDetailSlug) {
+      closeDetail();
+    }
   }
 });
 
@@ -611,7 +619,14 @@ document.getElementById('btn-toggle-archive')?.addEventListener('click', (e) => 
   fetchCards();
 });
 
-fetchCards();
+fetchCards().then(() => {
+  // Deep-link: auto-open card if URL matches /card/:slug
+  const deepLinkSlug = cardSlugFromPath();
+  if (deepLinkSlug) {
+    const card = cards.find(c => c.slug === deepLinkSlug);
+    if (card) openDetail(card, false);
+  }
+});
 
 // Fetch current git user for auto-assign
 fetch('/api/whoami').then(r => r.json()).then(d => { currentUser = d.user || ''; }).catch(() => {});
@@ -1243,6 +1258,18 @@ document.getElementById('btn-tab-dojo')?.addEventListener('click', () => {
 
 // Handle browser back/forward
 window.addEventListener('popstate', (e) => {
+  const cardSlug = e.state?.card || cardSlugFromPath();
+  if (cardSlug) {
+    const card = cards.find(c => c.slug === cardSlug);
+    if (card) {
+      openDetail(card, false);
+    }
+    return;
+  }
+  // No card — close detail if open, switch view
+  if (currentDetailSlug) {
+    closeDetail(false);
+  }
   const view = e.state?.view || viewFromPath();
   switchToView(view, false);
 });
@@ -1252,6 +1279,12 @@ function viewFromPath() {
   const p = window.location.pathname;
   if (p === '/dojo') return 'dojo';
   return 'board';
+}
+
+// Extract card slug from /card/:slug URL
+function cardSlugFromPath() {
+  const m = window.location.pathname.match(/^\/card\/(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
 }
 
 // --- Dojo Timeline ---
