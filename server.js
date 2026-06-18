@@ -5,6 +5,7 @@ const path = require("path");
 const { execFile, execFileSync } = require("child_process");
 const dispatch = require("./dispatch");
 const kata = require("./kata");
+const { createRegistry } = require("./registry");
 
 const DOCS_ROOT = process.cwd();
 
@@ -70,9 +71,9 @@ const BACKLOG_DIR = path.resolve(DOCS_ROOT, config.backlogDir);
 const ARCHIVE_DIR = path.join(BACKLOG_DIR, "archive");
 const GOAL_FILE = path.join(DOCS_ROOT, "weekly-goal.md");
 
-// --- Agent dispatch (optional) ---
+// --- Agent dispatch (optional, multi-driver) ---
 const agentConfig = config.agent || null;
-let agentDriver = null;
+let driverRegistry = null;
 let agentSkillsDir = null;
 
 if (agentConfig) {
@@ -80,11 +81,10 @@ if (agentConfig) {
 		log(`⚠  No agent driver configured — set agent.driver in .faru.local.json`);
 	} else {
 		try {
-			agentDriver = require(`./drivers/${agentConfig.driver}`);
+			driverRegistry = createRegistry(agentConfig, log);
 			agentSkillsDir = path.resolve(DOCS_ROOT, agentConfig.skills || "./skills");
-			log(`🤖 Agent dispatch enabled — driver: ${agentConfig.driver}, skills: ${agentConfig.skills}`);
 		} catch (e) {
-			console.error(`⚠  Failed to load agent driver "${agentConfig.driver}": ${e.message}`);
+			console.error(`⚠  Failed to initialise driver registry: ${e.message}`);
 			console.error(`   Dispatch feature will be disabled.`);
 		}
 	}
@@ -745,8 +745,10 @@ const server = http.createServer(async (req, res) => {
 			JSON.stringify({
 				cardCategories: config.cardCategories,
 				port: config.port,
-				agentEnabled: !!(agentConfig && agentDriver),
+				agentEnabled: !!driverRegistry,
 				dojoEnabled: !!kataDir,
+				driverName: driverRegistry ? driverRegistry.defaultDriverName : null,
+				routing: driverRegistry ? driverRegistry.routing : null,
 				dojoSchedulerEnabled: !!config.runKata,
 			}),
 		);
@@ -1061,8 +1063,8 @@ const server = http.createServer(async (req, res) => {
 			fs.writeFileSync(filePath, content, "utf-8");
 			log(`🥋 Kata created: ${slug}`);
 			// Restart scheduler to pick up new kata
-			if (agentDriver && agentConfig) {
-				kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
+			if (driverRegistry) {
+				kata.startScheduler(kataDir, driverRegistry.getDriver("dojo"), driverRegistry.getDriverConfig("dojo"), kataFns);
 			}
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ created: true, id: slug }));
@@ -1074,7 +1076,7 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	if (url.pathname.match(/^\/api\/dojo\/kata\/[^/]+\/run$/) && req.method === "POST") {
-		if (!kataDir || !agentDriver || !agentConfig) {
+		if (!kataDir || !driverRegistry) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: "Dojo or agent not configured" }));
 			return;
@@ -1090,7 +1092,7 @@ const server = http.createServer(async (req, res) => {
 		res.writeHead(202, { "Content-Type": "application/json" });
 		res.end(JSON.stringify({ running: true, kataId }));
 		// Fire and forget
-		kata.runKata(k, kataDir, agentDriver, agentConfig, kataFns).catch((e) => {
+		kata.runKata(k, kataDir, driverRegistry.getDriver("dojo"), driverRegistry.getDriverConfig("dojo"), kataFns).catch((e) => {
 			log(`❌ Kata run failed: ${e.message}`);
 		});
 		return;
@@ -1204,13 +1206,13 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	if (url.pathname === "/api/dispatch/available" && req.method === "GET") {
-		if (!agentDriver || !agentConfig) {
+		if (!driverRegistry) {
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ available: false, reason: "not configured" }));
 			return;
 		}
 		try {
-			const available = await agentDriver.isAvailable(agentConfig);
+			const available = await driverRegistry.getDefaultDriver().isAvailable(driverRegistry.getDefaultConfig());
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ available }));
 		} catch (e) {
@@ -1221,7 +1223,7 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	if (url.pathname.match(/^\/api\/cards\/[^/]+\/dispatch$/) && req.method === "POST") {
-		if (!agentDriver || !agentConfig) {
+		if (!driverRegistry) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: "Agent dispatch not configured" }));
 			return;
@@ -1237,6 +1239,8 @@ const server = http.createServer(async (req, res) => {
 			}
 
 			// Find the card data
+			const dispatchDriver = driverRegistry.getDriver("dispatch");
+			const dispatchConfig = driverRegistry.getDriverConfig("dispatch");
 			const allCards = getCards();
 			const card = allCards.find(c => c.slug === slug);
 			if (!card) {
@@ -1268,7 +1272,7 @@ const server = http.createServer(async (req, res) => {
 			const ds = dispatch.getState();
 			const ks = kata.getKataState();
 			if (ds.status === "running" || ks.status === "running") {
-				const result = dispatch.enqueue(cardData, chain, agentDriver, agentConfig, dispatchFns);
+				const result = dispatch.enqueue(cardData, chain, dispatchDriver, dispatchConfig, dispatchFns);
 				if (!result.queued) {
 					// Slug already running or already queued
 					res.writeHead(409, { "Content-Type": "application/json" });
@@ -1288,7 +1292,7 @@ const server = http.createServer(async (req, res) => {
 			res.end(JSON.stringify({ dispatched: true, slug, chain: chain.map(s => s.skill) }));
 
 			// Fire and forget
-			dispatch.runDispatch(cardData, chain, agentDriver, agentConfig, dispatchFns).catch(e => {
+			dispatch.runDispatch(cardData, chain, dispatchDriver, dispatchConfig, dispatchFns).catch(e => {
 				log(`❌ Dispatch crashed: ${e.message}`);
 			});
 		} catch (e) {
@@ -1299,14 +1303,14 @@ const server = http.createServer(async (req, res) => {
 	}
 
 	if (url.pathname === "/api/dispatch/abort" && req.method === "POST") {
-		if (!agentDriver) {
+		if (!driverRegistry) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: "Agent dispatch not configured" }));
 			return;
 		}
 		const slug = dispatch.abortDispatch();
-		if (slug && agentDriver) {
-			try { await agentDriver.abort(agentConfig); } catch (_) {}
+		if (slug) {
+			try { await driverRegistry.getDriver("dispatch").abort(driverRegistry.getDriverConfig("dispatch")); } catch (_) {}
 			try {
 				// Write abort comment with faru-agent author
 				const folderP = path.join(BACKLOG_DIR, slug);
@@ -1596,6 +1600,11 @@ const archiveLabel = config.archiveDoneAfterDays
 	? `${config.archiveDoneAfterDays}d`
 	: 'OFF';
 const dojoLabel = kataDir && config.runKata ? 'ON' : 'OFF';
+const driverLabel = driverRegistry
+	? (driverRegistry.allDriverNames.length > 1
+		? driverRegistry.allDriverNames.join(', ')
+		: driverRegistry.defaultDriverName)
+	: 'OFF';
 
 // Dispatch functions — shared between direct dispatch and queue
 const dispatchFns = {
@@ -1645,6 +1654,7 @@ server.listen(PORT, () => {
 	console.log(`  │   live-reload: ON                    │`);
 	console.log(`  │   git sync: ${syncLabel.padEnd(25)}│`);
 	console.log(`  │   auto-archive: ${archiveLabel.padEnd(19)}│`);
+	console.log(`  │   drivers: ${driverLabel.padEnd(25)}│`);
 	console.log(`  │   dojo: ${dojoLabel.padEnd(27)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
@@ -1656,11 +1666,13 @@ server.listen(PORT, () => {
 
 	// Start kata scheduler if dojo and agent are both configured
 	// Scheduler only runs when runKata is true (set via .faru.local.json)
-	if (kataDir && agentDriver && agentConfig && config.runKata) {
-		const count = kata.startScheduler(kataDir, agentDriver, agentConfig, kataFns);
+	if (kataDir && driverRegistry && config.runKata) {
+		const dojoDriver = driverRegistry.getDriver("dojo");
+		const dojoConfig = driverRegistry.getDriverConfig("dojo");
+		const count = kata.startScheduler(kataDir, dojoDriver, dojoConfig, kataFns);
 		log(`🥋 Dojo scheduler started — ${count} kata scheduled`);
-		kata.watchKataDir(kataDir, agentDriver, agentConfig, kataFns);
-	} else if (kataDir && agentDriver && agentConfig) {
+		kata.watchKataDir(kataDir, dojoDriver, dojoConfig, kataFns);
+	} else if (kataDir && driverRegistry) {
 		log(`🥋 Dojo available (manual runs only — enable via .faru.local.json)`);
 	}
 });
