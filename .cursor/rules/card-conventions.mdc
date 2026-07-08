@@ -1,0 +1,115 @@
+---
+description: CARD.md frontmatter, backlog structure, and milestones
+globs: backlog/**/*
+alwaysApply: false
+---
+# Card Conventions
+
+## Overview
+
+Faru cards are markdown files in `backlog/`. The filesystem is the source of truth — the board is a view layer.
+
+## Backlog Structure
+
+```
+backlog/
+└── YYYY-MM-DD-TYPE-TITLE/
+    ├── CARD.md                  # Primary card file (or *-milestones.md)
+    ├── PREFIX-milestones.md     # Optional milestone definitions
+    └── PREFIX-N-report.md         # Milestone completion reports
+```
+
+### Folder Naming
+
+Format: `YYYY-MM-DD-TYPE-TITLE`
+
+- `YYYY-MM-DD`: creation date
+- `TYPE`: uppercase category (must match a `cardCategories` entry)
+- `TITLE`: uppercase, hyphens instead of spaces
+
+Example: `2026-04-20-PRODUCT-OAUTH-LOGIN`
+
+## CARD.md Frontmatter
+
+```yaml
+---
+title: Human-readable title
+type: product          # lowercase, from cardCategories
+status: todo           # todo | wip | done
+assigned: alice
+created: 2026-04-15
+edited: 2026-04-15
+description: One-line summary
+links:
+  - specs/oauth-design.md
+---
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `title` | yes | Display name |
+| `type` | yes | Lowercase category from config |
+| `status` | yes | `todo`, `wip`, or `done` — only three columns |
+| `assigned` | yes | Git username |
+| `created` | yes | ISO date |
+| `edited` | yes | Update on every change |
+| `description` | recommended | One-line summary for card tiles |
+| `links` | optional | External references shown in sidebar |
+
+## Primary File Resolution
+
+Faru picks the primary file for frontmatter in this order:
+
+1. `*-milestones.md`
+2. `CARD.md`
+3. `*-spec.md`
+4. Any `.md` file
+
+## Milestones
+
+A `PREFIX-milestones.md` file defines milestones with `## PREFIX-N:` headings:
+
+```yaml
+---
+title: My Project
+type: infra
+status: wip
+assigned: alice
+created: 2026-04-14
+edited: 2026-04-14
+description: Short summary
+---
+
+# VX Milestones
+
+## VX-1: Research & Design
+
+> Scope and acceptance criteria.
+
+## VX-2: Implementation
+```
+
+A milestone is **done** when `PREFIX-N-report.md` exists in the same folder. The board shows progress like `● 2/3`.
+
+## Comments
+
+Comments are stored as a `## Comments` section in `CARD.md`. Added from the card detail view.
+
+## Weekly Goal
+
+`weekly-goal.md` in the project root holds a single line describing the current week's focus.
+
+## Housekeeping
+
+When completing milestone work:
+
+1. Update milestone status in `*-milestones.md` — check off completed items.
+2. Sync frontmatter `status` — if all milestones done, set `status: done`.
+3. Update `edited` date in frontmatter to the current date.
+
+## Anti-Patterns
+
+1. **Extra status columns** — only todo, wip, done
+2. **Cards outside `backlogDir`** — must live under configured backlog path
+3. **Missing frontmatter** — board cannot render the card
+4. **TYPE mismatch** — folder TYPE must match a configured `cardCategories` entry
