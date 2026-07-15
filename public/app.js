@@ -2,6 +2,7 @@
 let cards = [];
 let currentUser = '';
 let isArchiveView = false;
+let appConfig = {};
 
 // --- Unread tracking ---
 // A card is "unread" when it's still in wip and the latest faru-agent comment
@@ -431,6 +432,27 @@ function setupDetailModal() {
     if (e.target === overlay) closeDetail();
   });
 
+  // Copy the card's absolute folder path — for pasting into a prompt so an
+  // agent can read the card and its siblings directly off disk.
+  const copyPathBtn = document.getElementById('detail-copy-path');
+  copyPathBtn.addEventListener('click', async () => {
+    if (!currentDetailSlug) return;
+    const root = (appConfig.docsRoot || '').replace(/\/+$/, '');
+    const backlog = (appConfig.backlogDir || 'backlog').replace(/^\.\/+/, '').replace(/\/+$/, '');
+    const path = `${root}/${backlog}/${currentDetailSlug}/`;
+    try {
+      await navigator.clipboard.writeText(path);
+      copyPathBtn.classList.add('copied');
+      copyPathBtn.title = 'Path copied';
+      setTimeout(() => {
+        copyPathBtn.classList.remove('copied');
+        copyPathBtn.title = 'Copy card path';
+      }, 1400);
+    } catch (_) {
+      /* clipboard unavailable — no-op */
+    }
+  });
+
   // Inline title editing (blur-save)
   titleEl.addEventListener('blur', () => {
     const newTitle = titleEl.textContent.trim();
@@ -635,6 +657,7 @@ fetch('/api/whoami').then(r => r.json()).then(d => { currentUser = d.user || '';
 fetch('/api/config')
   .then(r => r.json())
   .then(cfg => {
+    appConfig = cfg;
     const selects = [document.getElementById('new-card-type'), document.getElementById('detail-type')];
     for (const sel of selects) {
       sel.innerHTML = '';

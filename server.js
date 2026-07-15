@@ -745,6 +745,8 @@ const server = http.createServer(async (req, res) => {
 			JSON.stringify({
 				cardCategories: config.cardCategories,
 				port: config.port,
+				docsRoot: DOCS_ROOT,
+				backlogDir: config.backlogDir,
 				agentEnabled: !!driverRegistry,
 				dojoEnabled: !!kataDir,
 				driverName: driverRegistry ? driverRegistry.defaultDriverName : null,

@@ -612,6 +612,50 @@ body {
 	background: var(--surface-active);
 }
 
+/* Title grows so the copy-path and close buttons sit at the far right. */
+.detail-primary .modal-header h3 {
+	flex: 1;
+	min-width: 0;
+}
+
+.detail-copy-path {
+	flex-shrink: 0;
+	align-self: center;
+	background: transparent;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 5px;
+	border-radius: var(--radius);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all var(--transition);
+}
+
+.detail-copy-path:hover {
+	color: var(--text);
+	background: var(--surface-active);
+}
+
+.detail-copy-path .icon-check {
+	display: none;
+	color: var(--green);
+}
+
+.detail-copy-path.copied {
+	opacity: 1;
+	color: var(--green);
+}
+
+.detail-copy-path.copied .icon-folder {
+	display: none;
+}
+
+.detail-copy-path.copied .icon-check {
+	display: block;
+}
+
 .modal-form {
 	display: flex;
 	flex-direction: column;
