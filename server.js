@@ -553,12 +553,50 @@ function archiveCard(slug) {
 	fs.renameSync(src, path.join(ARCHIVE_DIR, slug));
 }
 
+// Move one or more cards to the archive AND commit the rename as a single
+// mutex-held unit. This is the key to not leaving an uncommitted rename on
+// disk: while gitBusy is held the sync loop skips its cycle (checkRemote),
+// so it can never `git stash` a half-done archive and then collide with the
+// same rename arriving from the pull. If the mutex is already taken the
+// archive is deferred (the next sweep retries) rather than done outside it.
+// Returns true if the archive was performed, false if deferred/skipped.
+function archiveAndCommit(slugs, message) {
+	// No git sync configured — archiving is a plain filesystem move.
+	if (!config.autoSync) {
+		for (const slug of slugs) archiveCard(slug);
+		return true;
+	}
+	if (gitBusy) {
+		log(`⏳ git busy — deferring archive: ${message}`);
+		return false;
+	}
+	gitBusy = true;
+	try {
+		const paths = [];
+		for (const slug of slugs) {
+			// Skip (don't abort the batch) if a card vanished since it was picked.
+			if (!fs.existsSync(path.join(BACKLOG_DIR, slug))) continue;
+			archiveCard(slug); // fs.renameSync — moves tracked + untracked contents
+			paths.push(`backlog/${slug}`, `backlog/archive/${slug}`);
+		}
+		for (const p of paths) {
+			execFileSync("git", ["add", p], { cwd: DOCS_ROOT, stdio: "pipe" });
+		}
+		commitAndPush(message); // hands off the mutex (released on push / no-op)
+		return true;
+	} catch (e) {
+		gitBusy = false;
+		log(`⚠  archive failed: ${e.message}`);
+		return false;
+	}
+}
+
 function autoArchiveSweep() {
 	const days = config.archiveDoneAfterDays;
 	if (!days) return;
 	const cutoff = Date.now() - days * 86400000;
 	if (!fs.existsSync(BACKLOG_DIR)) return;
-	const archived = [];
+	const eligible = [];
 
 	for (const entry of fs.readdirSync(BACKLOG_DIR)) {
 		if (entry === "archive" || entry.startsWith(".")) continue;
@@ -573,22 +611,19 @@ function autoArchiveSweep() {
 		if (data.status !== "done" || !data.completed) continue;
 
 		const completedMs = new Date(data.completed).getTime();
-		
+
 		if (isNaN(completedMs) || completedMs > cutoff) continue;
 
-		try {
-			archiveCard(entry);
-			archived.push(entry);
-			log(`📦 auto-archived: ${entry}`);
-		} catch (_) { /* skip */ }
+		eligible.push(entry);
 	}
 
-	if (archived.length > 0) {
-		const paths = archived.flatMap((s) => [
-			`backlog/${s}`,
-			`backlog/archive/${s}`,
-		]);
-		gitCommit(`auto-archive ${archived.length} done card${archived.length === 1 ? "" : "s"}`, paths);
+	if (eligible.length === 0) return;
+
+	// Rename + commit atomically under the git mutex so the sync loop can't
+	// stash a half-done archive. If deferred (mutex busy) the next sweep retries.
+	const msg = `auto-archive ${eligible.length} done card${eligible.length === 1 ? "" : "s"}`;
+	if (archiveAndCommit(eligible, msg)) {
+		for (const slug of eligible) log(`📦 auto-archived: ${slug}`);
 		notifyLiveReload();
 	}
 }
@@ -635,56 +670,64 @@ function gitCommit(message, paths) {
 		for (const p of paths) {
 			execFileSync("git", ["add", p], { cwd: DOCS_ROOT, stdio: "pipe" });
 		}
-		// Check if there's anything staged
-		try {
-			execFileSync("git", ["diff", "--cached", "--quiet"], {
-				cwd: DOCS_ROOT,
-				stdio: "pipe",
-			});
-			gitBusy = false;
-			return; // nothing staged
-		} catch (_) {
-			// diff --cached returns exit 1 if there are staged changes — that's what we want
-		}
-		execFileSync("git", ["commit", "-m", `board: ${message}`], {
-			cwd: DOCS_ROOT,
-			stdio: "pipe",
-		});
-		log(`📝 committed: ${message}`);
-		// Pull --rebase before push to catch up with remote and avoid
-		// "rejected — non-fast-forward" races. Working tree is clean
-		// after the commit above, so no stash needed here.
-		try {
-			execFileSync("git", ["pull", "--rebase"], {
-				cwd: DOCS_ROOT,
-				stdio: "pipe",
-			});
-		} catch (_pullErr) {
-			log(`⚠  pre-push rebase conflict — aborting rebase, commit preserved locally`);
-			try { execFileSync("git", ["rebase", "--abort"], { cwd: DOCS_ROOT, stdio: "pipe" }); } catch (_) {}
-		}
-		// Push (async — release lock when done)
-		execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
-			gitBusy = false;
-			if (err) {
-				log(`⚠  git push failed: ${stderr.trim() || err.message}`);
-				return;
-			}
-			log(`⬆  pushed`);
-			// Update SHA so the next poll doesn't trigger a redundant pull
-			try {
-				lastKnownRemoteSha = execFileSync("git", ["rev-parse", "HEAD"], {
-					cwd: DOCS_ROOT,
-					encoding: "utf-8",
-				}).trim();
-			} catch (_) {
-				/* best effort */
-			}
-		});
+		commitAndPush(message);
 	} catch (e) {
 		gitBusy = false;
 		log(`⚠  git commit failed: ${e.message}`);
 	}
+}
+
+// Commit whatever is currently staged, then rebase + push. Assumes the caller
+// already holds the gitBusy mutex and has staged its changes; ownership of the
+// mutex passes to this function, which releases it (via the async push callback,
+// or synchronously if there is nothing to commit / an error propagates).
+function commitAndPush(message) {
+	// Check if there's anything staged
+	try {
+		execFileSync("git", ["diff", "--cached", "--quiet"], {
+			cwd: DOCS_ROOT,
+			stdio: "pipe",
+		});
+		gitBusy = false;
+		return; // nothing staged
+	} catch (_) {
+		// diff --cached returns exit 1 if there are staged changes — that's what we want
+	}
+	execFileSync("git", ["commit", "-m", `board: ${message}`], {
+		cwd: DOCS_ROOT,
+		stdio: "pipe",
+	});
+	log(`📝 committed: ${message}`);
+	// Pull --rebase before push to catch up with remote and avoid
+	// "rejected — non-fast-forward" races. Working tree is clean
+	// after the commit above, so no stash needed here.
+	try {
+		execFileSync("git", ["pull", "--rebase"], {
+			cwd: DOCS_ROOT,
+			stdio: "pipe",
+		});
+	} catch (_pullErr) {
+		log(`⚠  pre-push rebase conflict — aborting rebase, commit preserved locally`);
+		try { execFileSync("git", ["rebase", "--abort"], { cwd: DOCS_ROOT, stdio: "pipe" }); } catch (_) {}
+	}
+	// Push (async — release lock when done)
+	execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
+		gitBusy = false;
+		if (err) {
+			log(`⚠  git push failed: ${stderr.trim() || err.message}`);
+			return;
+		}
+		log(`⬆  pushed`);
+		// Update SHA so the next poll doesn't trigger a redundant pull
+		try {
+			lastKnownRemoteSha = execFileSync("git", ["rev-parse", "HEAD"], {
+				cwd: DOCS_ROOT,
+				encoding: "utf-8",
+			}).trim();
+		} catch (_) {
+			/* best effort */
+		}
+	});
 }
 
 // --- HTTP Server ---
@@ -856,14 +899,15 @@ const server = http.createServer(async (req, res) => {
 	) {
 		const slug = decodeURIComponent(url.pathname.split("/")[3]);
 		try {
-			archiveCard(slug);
-			gitCommit(`archive ${slug}`, [
-				`backlog/${slug}`,
-				`backlog/archive/${slug}`,
-			]);
-			invalidateCardCache();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ archived: true }));
+			if (!fs.existsSync(path.join(BACKLOG_DIR, slug)))
+				throw new Error("Card not found");
+			// Atomic rename + commit under the git mutex (see archiveAndCommit).
+			// Returns false if the mutex was momentarily busy — report that
+			// honestly so the client can retry rather than assume success.
+			const archived = archiveAndCommit([slug], `archive ${slug}`);
+			if (archived) invalidateCardCache();
+			res.writeHead(archived ? 200 : 503, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(archived ? { archived: true } : { archived: false, retry: true }));
 		} catch (e) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: e.message }));
