@@ -10,5 +10,8 @@
 	"dependencies": {
 		"chrome-remote-interface": "0.34.0",
 		"node-cron": "^4.2.1"
+	},
+	"scripts": {
+		"test": "bun test"
 	}
 }

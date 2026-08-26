@@ -6,6 +6,7 @@ const { execFile, execFileSync } = require("child_process");
 const dispatch = require("./dispatch");
 const kata = require("./kata");
 const { createRegistry } = require("./registry");
+const { stageWithGuard } = require("./gitguard");
 
 const DOCS_ROOT = process.cwd();
 
@@ -579,8 +580,10 @@ function archiveAndCommit(slugs, message) {
 			archiveCard(slug); // fs.renameSync — moves tracked + untracked contents
 			paths.push(`backlog/${slug}`, `backlog/archive/${slug}`);
 		}
-		for (const p of paths) {
-			execFileSync("git", ["add", p], { cwd: DOCS_ROOT, stdio: "pipe" });
+		const guard = stageWithGuard({ root: DOCS_ROOT, paths, log });
+		if (!guard.staged) {
+			gitBusy = false;
+			return true; // the move happened; there was simply nothing left to record
 		}
 		commitAndPush(message); // hands off the mutex (released on push / no-op)
 		return true;
@@ -667,8 +670,13 @@ function gitCommit(message, paths) {
 	}
 	gitBusy = true;
 	try {
-		for (const p of paths) {
-			execFileSync("git", ["add", p], { cwd: DOCS_ROOT, stdio: "pipe" });
+		// Two-stage check over what is about to be staged: conflict markers, and
+		// JSON that does not parse. Offenders are held back and reported; the
+		// commit still carries everything else. See gitguard.js.
+		const guard = stageWithGuard({ root: DOCS_ROOT, paths, log });
+		if (!guard.staged) {
+			gitBusy = false;
+			return; // nothing left to commit this cycle
 		}
 		commitAndPush(message);
 	} catch (e) {
