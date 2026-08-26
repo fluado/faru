@@ -8,6 +8,7 @@ const kata = require("./kata");
 const { createRegistry } = require("./registry");
 const { stageWithGuard } = require("./gitguard");
 const { syncWithRemote, abortRebaseVerified } = require("./gitsync");
+const { installHooks } = require("./githooks");
 
 const DOCS_ROOT = process.cwd();
 
@@ -1597,6 +1598,7 @@ function checkRemote() {
 						log(`⬇  synced from remote`);
 					}
 					if (result.status === "synced") notifyLiveReload();
+					ensureHooks(); // idempotent; re-installs if someone removed it
 					// The sync may have made a commit of its own; get it out.
 					if (result.committed) pushIfAhead();
 				})
@@ -1607,6 +1609,19 @@ function checkRemote() {
 				});
 		},
 	);
+}
+
+// The pre-commit hook covers commits the daemon does not make: a person at a
+// terminal, a dispatched agent session, a script added later. Opt out with
+// "gitHooks": false. It never takes over a core.hooksPath someone else set.
+let hooksReported = false;
+function ensureHooks() {
+	if (config.gitHooks === false) return;
+	const result = installHooks({ root: DOCS_ROOT, log });
+	if (!result.installed && !hooksReported) {
+		hooksReported = true;
+		log(`ℹ  pre-commit hook not installed — ${result.reason}`);
+	}
 }
 
 // Pushes only when the local branch is actually ahead, so a quiet cycle costs
@@ -1633,6 +1648,7 @@ function pushIfAhead() {
 }
 
 if (config.autoSync) {
+	ensureHooks();
 	setInterval(checkRemote, SYNC_INTERVAL);
 
 	// Initial push on startup (flush any unpushed local commits)
