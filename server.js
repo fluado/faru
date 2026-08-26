@@ -7,6 +7,7 @@ const dispatch = require("./dispatch");
 const kata = require("./kata");
 const { createRegistry } = require("./registry");
 const { stageWithGuard } = require("./gitguard");
+const { syncWithRemote, abortRebaseVerified } = require("./gitsync");
 
 const DOCS_ROOT = process.cwd();
 
@@ -716,7 +717,13 @@ function commitAndPush(message) {
 		});
 	} catch (_pullErr) {
 		log(`⚠  pre-push rebase conflict — aborting rebase, commit preserved locally`);
-		try { execFileSync("git", ["rebase", "--abort"], { cwd: DOCS_ROOT, stdio: "pipe" }); } catch (_) {}
+		// The abort has to be PROVEN. Swallowing its error left the daemon
+		// committing and pushing out of a repository stuck mid-rebase.
+		if (!abortRebaseVerified(DOCS_ROOT, log)) {
+			syncHalted = true;
+			gitBusy = false;
+			return;
+		}
 	}
 	// Push (async — release lock when done)
 	execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
@@ -1541,8 +1548,13 @@ fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
 const SYNC_INTERVAL = 5_000; // 5 seconds
 let lastKnownRemoteSha = null;
 let syncing = false;
+// Set when the repository could not be returned to a known-good state. Syncing
+// stops rather than continuing blind, because continuing is how a conflicted
+// tree reaches the remote.
+let syncHalted = false;
 
 function checkRemote() {
+	if (syncHalted) return; // a previous cycle left the repo in a state we will not guess at
 	if (gitBusy) return; // commit+push in progress — skip this cycle
 	execFile(
 		"git",
@@ -1563,74 +1575,61 @@ function checkRemote() {
 			if (gitBusy) return; // recheck after async gap
 			lastKnownRemoteSha = remoteSha;
 
-			// Remote changed — pull
+			// Remote changed — pull. See gitsync.js: commit-then-rebase, never
+			// a whole-tree stash, and a rebase abort that is verified.
 			gitBusy = true;
 			syncing = true;
-			const localHead = execFileSync("git", ["rev-parse", "HEAD"], {
-				cwd: DOCS_ROOT,
-				encoding: "utf-8",
-			}).trim();
-
-			// Stash any uncommitted changes so pull --rebase can proceed
-			// on a dirty working tree (e.g. user mid-edit between debounce cycles)
-			let stashed = false;
-			try {
-				execFileSync("git", ["stash", "--include-untracked"], {
-					cwd: DOCS_ROOT,
-					stdio: "pipe",
-				});
-				stashed = true;
-			} catch (_) {
-				// Nothing to stash (clean tree) — this is the common path
-			}
-
-			execFile(
-				"git",
-				["pull", "--rebase"],
-				{ cwd: DOCS_ROOT },
-				(pullErr, pullOut, pullStderr) => {
-					if (pullErr) {
-						log(`⚠  git pull failed: ${pullStderr.trim() || pullErr.message}`);
-						// Abort any stuck rebase so the repo isn't left in a broken state
-						try { execFileSync("git", ["rebase", "--abort"], { cwd: DOCS_ROOT, stdio: "pipe" }); } catch (_) {}
-					} else {
-						// Show what commits came in (from old local HEAD to new HEAD)
-						execFile(
-							"git",
-							["log", `${localHead}..HEAD`, "--oneline", "--reverse"],
-							{ cwd: DOCS_ROOT },
-							(logErr, logOut) => {
-								const msgs = logErr ? "" : logOut.trim();
-								if (msgs) {
-									log(
-										`⬇  synced from remote:\n${msgs
-											.split("\n")
-											.map((l) => `       ${l}`)
-											.join("\n")}`,
-									);
-								} else {
-									log(`⬇  synced from remote`);
-								}
-							},
+			syncWithRemote({ repo: DOCS_ROOT, log })
+				.then((result) => {
+					if (result.status === "halted") {
+						syncHalted = true;
+						log(`🛑 sync stopped. Resolve the repository by hand, then restart the board.`);
+						return;
+					}
+					if (result.status === "blocked") return; // already reported
+					if (result.pulled.length) {
+						log(
+							`⬇  synced from remote:\n${result.pulled
+								.map((l) => `       ${l}`)
+								.join("\n")}`,
 						);
-						notifyLiveReload();
+					} else if (result.status === "synced") {
+						log(`⬇  synced from remote`);
 					}
-
-					// Restore stashed changes
-					if (stashed) {
-						try {
-							execFileSync("git", ["stash", "pop"], { cwd: DOCS_ROOT, stdio: "pipe" });
-						} catch (_) {
-							log(`⚠  git stash pop conflict — changes preserved in stash list`);
-						}
-					}
-
+					if (result.status === "synced") notifyLiveReload();
+					// The sync may have made a commit of its own; get it out.
+					if (result.committed) pushIfAhead();
+				})
+				.catch((e) => log(`⚠  sync failed: ${e.message}`))
+				.finally(() => {
 					syncing = false;
 					gitBusy = false;
-				},
-			);
+				});
 		},
 	);
+}
+
+// Pushes only when the local branch is actually ahead, so a quiet cycle costs
+// nothing. Best-effort: a failed push is retried by the next commit.
+function pushIfAhead() {
+	execFile("git", ["rev-list", "--count", "@{u}..HEAD"], { cwd: DOCS_ROOT }, (err, out) => {
+		if (err || Number((out || "").trim()) === 0) return;
+		execFile("git", ["push"], { cwd: DOCS_ROOT }, (pushErr, _o, pushErrOut) => {
+			if (pushErr) {
+				log(`⚠  git push failed: ${(pushErrOut || "").trim() || pushErr.message}`);
+				return;
+			}
+			log(`⬆  pushed`);
+			try {
+				lastKnownRemoteSha = execFileSync("git", ["rev-parse", "HEAD"], {
+					cwd: DOCS_ROOT,
+					encoding: "utf-8",
+				}).trim();
+			} catch (_) {
+				/* best effort */
+			}
+		});
+	});
 }
 
 if (config.autoSync) {
