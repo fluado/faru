@@ -5,6 +5,7 @@
  */
 
 const fs = require("fs");
+const { appendDispatchLedger } = require("../ledger");
 const path = require("path");
 const readline = require("readline");
 const { spawn } = require("child_process");
@@ -174,13 +175,6 @@ function extractFinalOutput(finalEvent, fallbackText) {
 		"";
 	if (typeof result === "string" && result.trim()) return result;
 	return String(fallbackText || "").trim();
-}
-
-function appendDispatchLedger(workdir, payload) {
-	const dir = path.join(workdir, ".faru");
-	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-	const fp = path.join(dir, "dispatches.jsonl");
-	fs.appendFileSync(fp, JSON.stringify(payload) + "\n", "utf-8");
 }
 
 function writeDispatchLog(workdir, payload) {
@@ -551,12 +545,19 @@ module.exports = {
 			claudeSessionId: session.claudeSessionId,
 			skill: config?.__skillId || null,
 			cardSlug: config?.__cardSlug || null,
+			kata: config?.__kataId || null,
 			success,
 			errorType,
 			mode: run.mode,
 			costUsd: metrics.cost,
 			durationMs: metrics.durationMs || elapsedMs,
 			turns: metrics.turns,
+			// Why a run failed, in the ledger itself: the per-run log file under .faru/logs is
+			// gitignored and stays on the machine that ran it.
+			error: success ? null : String(output || "").slice(0, 300),
+			// Cost and turns exist only in stream-json mode. A plain-mode row is a run whose
+			// stream-json attempt hit an auth error and fell back, or a plainTextMode config.
+			plainFallback: Boolean(shouldFallbackToPlain),
 			toolEvents: run.toolEvents,
 			logFile,
 		});

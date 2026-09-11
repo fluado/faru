@@ -8,6 +8,10 @@
 const fs = require("fs");
 const path = require("path");
 const cron = require("node-cron");
+const { appendDispatchLedger } = require("./ledger");
+
+/** A kata skipped because something else was running gets exactly one second chance. */
+const RETRY_AFTER_MS = 10 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // Frontmatter parser (reused pattern from dispatch.js)
@@ -127,20 +131,66 @@ function getKataState() {
 	return { ...kataState };
 }
 
-async function runKata(kata, kataDir, driver, agentConfig, fns) {
-	// fns: { log, notifyReload, getDispatchState, onComplete? }
+function ledgerWorkdir(agentConfig) {
+	return path.resolve(process.cwd(), agentConfig?.workdir || ".");
+}
+
+/*
+ * A skipped kata is written to the same ledger as a kata that ran. Until 2026-09-11 a skip was
+ * only a line on the server's stdout, so a missing sweep file could not be told apart from a
+ * crash. Measured on the lead-scout kata: three Tuesday/Thursday mornings lost to a 06:00
+ * collision with another kata, invisible in the repo.
+ */
+function recordSkip(kata, reason, agentConfig, fns, retryScheduled) {
+	try {
+		appendDispatchLedger(ledgerWorkdir(agentConfig), {
+			timestamp: new Date().toISOString(),
+			kata: kata.id,
+			skill: null,
+			cardSlug: null,
+			success: false,
+			errorType: "skipped",
+			error: reason,
+			retryScheduled,
+		});
+	} catch (e) {
+		fns.log(`⚠  Could not write skip to ledger: ${e.message}`);
+	}
+}
+
+function scheduleRetry(kata, kataDir, driver, agentConfig, fns, reason) {
+	const delay = fns.retryDelayMs ?? RETRY_AFTER_MS;
+	fns.log(`⏲  Kata "${kata.title}" will retry once in ${formatDuration(delay)} (${reason})`);
+	const t = setTimeout(() => {
+		runKata(kata, kataDir, driver, agentConfig, fns, { isRetry: true }).catch((e) => {
+			fns.log(`❌ Kata "${kata.title}" retry error: ${e.message}`);
+		});
+	}, delay);
+	if (typeof t.unref === "function") t.unref();
+}
+
+async function runKata(kata, kataDir, driver, agentConfig, fns, { isRetry = false } = {}) {
+	// fns: { log, notifyReload, getDispatchState, onComplete?, retryDelayMs? }
 
 	// Guard: don't run if dispatch is active
 	if (fns.getDispatchState().status === "running") {
 		fns.log(`⏭  Kata "${kata.title}" skipped — dispatch is running`);
+		recordSkip(kata, "dispatch-running", agentConfig, fns, !isRetry);
+		if (!isRetry) scheduleRetry(kata, kataDir, driver, agentConfig, fns, "dispatch-running");
 		return { success: false, reason: "dispatch-running" };
 	}
 
 	// Guard: don't run if another kata is running
 	if (kataState.status === "running") {
 		fns.log(`⏭  Kata "${kata.title}" skipped — another kata is running`);
+		recordSkip(kata, "kata-running", agentConfig, fns, !isRetry);
+		if (!isRetry) scheduleRetry(kata, kataDir, driver, agentConfig, fns, "kata-running");
 		return { success: false, reason: "kata-running" };
 	}
+
+	// The driver tags its ledger row with this id, so a kata run is identifiable by name and
+	// not only by the minute it happened to run in.
+	const kataConfig = { ...agentConfig, __kataId: kata.id };
 
 	kataState = {
 		status: "running",
@@ -167,12 +217,12 @@ async function runKata(kata, kataDir, driver, agentConfig, fns) {
 
 	try {
 		// New session
-		await driver.newSession(agentConfig);
+		await driver.newSession(kataConfig);
 
 		// Select model if the kata declares one in frontmatter
 		if (kata.model && driver.setModel) {
 			fns.log(`🧠 Selecting model: ${kata.model} for kata "${kata.title}"`);
-			await driver.setModel(agentConfig, kata.model);
+			await driver.setModel(kataConfig, kata.model);
 		}
 
 		// Compose prompt: kata body + sentinel
@@ -181,7 +231,7 @@ async function runKata(kata, kataDir, driver, agentConfig, fns) {
 		const prompt = `${kata.body}\n\nWhen done, touch or re-create \`${sentinelPath}\` with content \`done\`.`;
 
 		// Execute
-		const result = await driver.execute(prompt, agentConfig, sentinelAbsPath);
+		const result = await driver.execute(prompt, kataConfig, sentinelAbsPath);
 
 		const duration = formatDuration(Date.now() - startTime);
 

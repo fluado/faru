@@ -15,6 +15,7 @@
  */
 
 const fs = require("fs");
+const { appendDispatchLedger } = require("../ledger");
 const path = require("path");
 const { spawn } = require("child_process");
 const { randomUUID } = require("crypto");
@@ -60,13 +61,6 @@ function resolvePathMaybe(baseDir, value) {
 function isSubPath(parentPath, targetPath) {
 	const rel = path.relative(parentPath, targetPath);
 	return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
-}
-
-function appendDispatchLedger(workdir, payload) {
-	const dir = path.join(workdir, ".faru");
-	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-	const fp = path.join(dir, "dispatches.jsonl");
-	fs.appendFileSync(fp, JSON.stringify(payload) + "\n", "utf-8");
 }
 
 function writeDispatchLog(workdir, payload) {
@@ -339,6 +333,7 @@ module.exports = {
 			sessionId: session.id,
 			skill: config?.__skillId || null,
 			cardSlug: config?.__cardSlug || null,
+			kata: config?.__kataId || null,
 			success,
 			errorType,
 			elapsedMs: run.elapsedMs,
