@@ -1580,7 +1580,7 @@ function checkRemote() {
 			// a whole-tree stash, and a rebase abort that is verified.
 			gitBusy = true;
 			syncing = true;
-			syncWithRemote({ repo: DOCS_ROOT, log })
+			syncWithRemote({ repo: DOCS_ROOT, log, backlogDir: BACKLOG_DIR })
 				.then((result) => {
 					if (result.status === "halted") {
 						syncHalted = true;

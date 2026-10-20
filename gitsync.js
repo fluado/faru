@@ -111,6 +111,36 @@ function abortRebaseVerified(root, log) {
 }
 
 /**
+ * Removes card folders a pull left behind as husks.
+ *
+ * When another machine archives a card, the pull deletes its tracked files
+ * here, but git never removes a directory that still holds an ignored file,
+ * and a dispatched card holds `.dispatch-complete`. The folder survives with
+ * nothing but that marker in it and the board shows a blank card. A husk is a
+ * backlog folder with no tracked file whose name already exists under
+ * archive/; both conditions are checked, so a freshly created card that is
+ * not committed yet is never touched.
+ *
+ * Returns the slugs removed.
+ */
+function pruneHusks({ repo, backlogDir, log }) {
+	const archiveDir = path.join(backlogDir, "archive");
+	if (!fs.existsSync(backlogDir) || !fs.existsSync(archiveDir)) return [];
+	const removed = [];
+	for (const entry of fs.readdirSync(backlogDir, { withFileTypes: true })) {
+		if (!entry.isDirectory() || entry.name === "archive") continue;
+		if (!fs.existsSync(path.join(archiveDir, entry.name))) continue;
+		const rel = path.relative(repo, path.join(backlogDir, entry.name));
+		const tracked = git(repo, ["ls-files", "--", rel]).trim();
+		if (tracked) continue;
+		fs.rmSync(path.join(backlogDir, entry.name), { recursive: true, force: true });
+		removed.push(entry.name);
+	}
+	if (removed.length) log(`🧹 removed ${removed.length} archived card husk(s): ${removed.join(", ")}`);
+	return removed;
+}
+
+/**
  * Pulls the remote into the working tree.
  *
  * Returns:
@@ -118,18 +148,23 @@ function abortRebaseVerified(root, log) {
  *   pulled    oneline descriptions of the commits that arrived
  *   committed true if local changes were committed before the pull
  *   excluded  paths the guard held back, if any
+ *   pruned    archived card husks removed after the pull (see pruneHusks)
  *   error     a human-readable reason when the status is not a success
  *
  * "halted" means the repository could not be returned to a known-good state.
  * The caller must stop syncing on it; continuing is how damage spreads.
+ *
+ * `backlogDir` is optional; when given, husks are pruned after a pull that
+ * brought commits.
  */
-async function syncWithRemote({ repo, log }) {
+async function syncWithRemote({ repo, log, backlogDir }) {
 	const localHead = git(repo, ["rev-parse", "HEAD"]).trim();
 	const result = {
 		status: "unchanged",
 		pulled: [],
 		committed: false,
 		excluded: [],
+		pruned: [],
 		error: null,
 	};
 
@@ -179,11 +214,15 @@ async function syncWithRemote({ repo, log }) {
 
 	result.pulled = incoming(repo, localHead);
 	result.status = result.pulled.length || result.committed ? "synced" : "unchanged";
+	if (backlogDir && result.pulled.length) {
+		result.pruned = pruneHusks({ repo, backlogDir, log });
+	}
 	return result;
 }
 
 module.exports = {
 	syncWithRemote,
+	pruneHusks,
 	abortRebaseVerified,
 	rebaseInProgress,
 	unmergedPaths,

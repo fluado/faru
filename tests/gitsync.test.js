@@ -246,3 +246,33 @@ test("window — the working tree barely disagrees with the writer", async () =>
 	expect(repo.read("state.json")).toBe(local);
 	expect(share).toBeLessThan(0.25);
 });
+
+test("I10 — a card archived on another machine leaves no husk behind after the pull", async () => {
+	// The marker a dispatched agent writes is gitignored. After the remote
+	// archives the card, the pull removes the tracked files but git cannot
+	// remove a folder that still holds an ignored file: the husk. Both the
+	// archive twin and the absence of tracked files are required before
+	// anything is removed, so a new, uncommitted card is never touched.
+	repo = makeRepo({
+		...SEED,
+		".gitignore": ".dispatch-complete\n",
+		"backlog/2026-01-01-CARD/CARD.md": "status: done\n",
+	});
+	repo.write("backlog/2026-01-01-CARD/.dispatch-complete", "done");
+	repo.write("backlog/2026-01-02-NEW/CARD.md", "status: todo\n"); // uncommitted, no archive twin
+	const other = repo.clone("archiver");
+	fs.mkdirSync(other.at("backlog/archive"), { recursive: true }); // git mv needs the parent to exist
+	other.git("mv", "backlog/2026-01-01-CARD", "backlog/archive/2026-01-01-CARD");
+	other.commit("board: auto-archive 1 done card");
+	other.push();
+
+	const log = recorder();
+	const result = await syncWithRemote({ repo: repo.root, log, backlogDir: repo.at("backlog") });
+
+	expect(result.status).toBe("synced");
+	expect(result.pruned).toEqual(["2026-01-01-CARD"]);
+	expect(repo.exists("backlog/2026-01-01-CARD")).toBe(false);
+	expect(repo.exists("backlog/archive/2026-01-01-CARD/CARD.md")).toBe(true);
+	expect(repo.exists("backlog/2026-01-02-NEW/CARD.md")).toBe(true);
+	expect(log.text()).toContain("husk");
+});
