@@ -5,6 +5,7 @@
  */
 
 const fs = require("fs");
+const os = require("os");
 const { appendDispatchLedger } = require("../ledger");
 const path = require("path");
 const readline = require("readline");
@@ -23,6 +24,21 @@ function resolvePathMaybe(baseDir, value) {
 	if (!value) return null;
 	if (path.isAbsolute(value)) return value;
 	return path.resolve(baseDir, value);
+}
+
+/**
+ * The program started in place of `claude`, from the driver config's `command`.
+ * A wrapper that runs Claude Code inside a sandbox goes here, so a dispatched
+ * agent is confined like an interactive session on the same machine. A bare
+ * name is looked up on PATH, `~/` is the home directory, and any other relative
+ * path is taken from the project root.
+ */
+function resolveClaudeCommand(config) {
+	const command = typeof config?.command === "string" ? config.command.trim() : "";
+	if (!command) return "claude";
+	if (command.startsWith("~/")) return path.join(os.homedir(), command.slice(2));
+	if (!command.includes("/")) return command;
+	return resolvePathMaybe(process.cwd(), command);
 }
 
 function isSubPath(parentPath, targetPath) {
@@ -240,7 +256,8 @@ function normalizePlainOutput(text) {
 
 async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emitEvent) {
 	const args = buildClaudeArgs(mode, prompt, session, config);
-	const child = spawn("claude", args, {
+	const command = resolveClaudeCommand(config);
+	const child = spawn(command, args, {
 		cwd: session.workdir,
 		stdio: ["pipe", "pipe", "pipe"],
 	});
@@ -341,6 +358,7 @@ async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emi
 	const elapsedMs = Date.now() - startedAt;
 	return {
 		mode,
+		command,
 		args,
 		exitCode,
 		execError,
@@ -355,9 +373,9 @@ async function runClaudeInvocation(session, prompt, config, mode, timeoutMs, emi
 	};
 }
 
-async function runVersionCheck() {
+async function runVersionCheck(command) {
 	return new Promise((resolve) => {
-		const p = spawn("claude", ["--version"], { stdio: "ignore" });
+		const p = spawn(command, ["--version"], { stdio: "ignore" });
 		const timer = setTimeout(() => {
 			try {
 				p.kill("SIGTERM");
@@ -389,9 +407,9 @@ function normalizeClaudeModel(modelId) {
 }
 
 module.exports = {
-	async isAvailable() {
+	async isAvailable(config) {
 		if (availabilityCache !== null) return availabilityCache;
-		availabilityCache = await runVersionCheck();
+		availabilityCache = await runVersionCheck(resolveClaudeCommand(config));
 		return availabilityCache;
 	},
 
@@ -526,6 +544,7 @@ module.exports = {
 			durationMs: metrics.durationMs || elapsedMs,
 			turns: metrics.turns,
 			run: {
+				command: run.command,
 				args: run.args,
 				exitCode: run.exitCode,
 				killedByTimeout: run.killedByTimeout,
@@ -610,4 +629,6 @@ module.exports = {
 		activeSession = null;
 		selectedModel = null;
 	},
+
+	resolveClaudeCommand,
 };

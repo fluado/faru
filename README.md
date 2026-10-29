@@ -309,6 +309,7 @@ The `driver` field and all driver-specific options go here. This file is gitigno
 
 | Claude Code field | Description |
 |---|---|
+| `command` | Program started instead of `claude`, e.g. a wrapper that runs Claude Code in a sandbox. A bare name is looked up on `PATH`, `~/` is the home directory, other relative paths start at the project root |
 | `workdir` | Spawn working directory for `claude` (defaults to project root) |
 | `allowedTools` | Optional comma-separated allowlist, mapped to `--allowedTools` |
 | `dangerouslySkipPermissions` | Passes `--dangerously-skip-permissions` for unattended runs |
