@@ -51,7 +51,7 @@ faru is a git-native kanban board that renders markdown files as cards.
 - backlogDir: path to the backlog directory (relative to project root)
 - port: local server port
 - cardCategories: the card types available in the UI (lowercase)
-- autoSync: if true, faru auto-commits and pushes changes via git
+- autoSync: if true, faru starts enmetu, which commits, pushes and pulls changes via git (needs Node 24+ or Bun 1.3.6+, git 2.38+ and a branch with an upstream)
 - archiveDoneAfterDays: cards marked "done" are auto-archived after N days
 
 Adjust cardCategories to match this project (e.g. "feature", "bug", "infra", "docs").
@@ -143,7 +143,7 @@ links:
 Details go here.
 ```
 
-Drag cards between columns. Edit titles and descriptions inline. Faru commits and pushes changes automatically.
+Drag cards between columns. Edit titles and descriptions inline. With `autoSync` on, the changes are committed and pushed automatically (see [Git Sync](#git-sync)).
 
 ### Links & References
 
@@ -225,7 +225,7 @@ Create a `faru.config.json` in your project root:
 | `backlogDir` | Path to your backlog directory, relative to project root |
 | `port` | Server port |
 | `cardCategories` | Category labels for the type dropdown |
-| `autoSync` | `true` = auto-commit, push, and poll remote. `false` = local only |
+| `autoSync` | `true` = faru starts enmetu, which commits, pushes, and pulls (see [Git Sync](#git-sync)). `false` = local only |
 | `archiveDoneAfterDays` | Automatically move `done` cards older than N days to archive |
 
 ### Agent Dispatch — Antigravity / Cursor / Claude Code (optional)
@@ -456,6 +456,48 @@ Only enable the scheduler on **one machine** to avoid duplicate runs. Other team
 
 `.faru.local.json` is a general-purpose override file. It deep-merges on top of `faru.config.json`, so you can override any setting per-machine (e.g. a different port, driver, or driver-specific options) without touching the shared config. The `agent.driver` field **must** be set here — it is intentionally absent from the shared config to prevent one machine's driver choice from propagating to the team.
 
+## Git Sync
+
+With `"autoSync": true`, faru starts [enmetu](https://www.npmjs.com/package/@fluado/enmetu) inside its own process. enmetu commits your changes once nothing has changed for 5 seconds (at most 60 seconds while changes keep coming), rebases onto the upstream, pushes, and checks the remote for new commits every 5 seconds. faru itself only writes files: board actions, comments, archiving and the weekly goal all land in enmetu's next commit. Cards that arrive with a pull reload open boards like cards you write.
+
+Requirements:
+
+- Node 24+ or Bun 1.3.6+
+- git 2.38+
+- a checked-out branch with an upstream, at least one commit, and a committer identity
+
+If one is missing, faru logs one line saying which and runs without sync.
+
+**Configuration.** enmetu reads `enmetu.config.json` at the repository root; faru passes it nothing. The keys and their defaults are in the Configuration table of [enmetu's README](https://www.npmjs.com/package/@fluado/enmetu). An invalid file turns sync off with a line saying why. To switch sync off on one machine only, set `"autoSync": false` in that machine's `.faru.local.json`.
+
+**Commit messages.** Every commit carries one fixed subject, `enmetu: local changes` unless you set `commitSubject`. A subject never names a card, a file or a directory.
+
+**Halt and resume.** When enmetu cannot verify the repository, for example after the upstream was rewritten, it halts and faru logs the two commands to run, with this machine's paths:
+
+```
+git sync halted. Why: <runtime> <enmetu cli> status --repo <repo>. Once fixed: <runtime> <enmetu cli> resume --repo <repo>, then restart faru
+```
+
+The halt survives restarts until you run `resume`. The board keeps working meanwhile; only sync stops.
+
+**When sync does not start.** A rebase, merge or cherry-pick in progress, a detached HEAD, or a branch without upstream: faru logs one line and tries again every minute. If another enmetu already syncs the repository, faru leaves the syncing to it.
+
+**Stopping.** Ctrl-C stops sync after its running cycle, usually within a second, then quits. Press Ctrl-C again to quit at once; enmetu recovers the interrupted cycle at its next start.
+
+**Hooks.** enmetu installs a pre-commit hook in `.git/hooks/pre-commit` that refuses conflict markers and invalid JSON, unless `core.hooksPath` is set or a pre-commit hook already exists. A repository where an older faru set `core.hooksPath=.githooks` keeps its tracked node hook, and enmetu runs that hook on its own commits, as faru's commits ran it before. To switch to enmetu's hook, run `git config --unset core.hooksPath` and delete `.githooks/pre-commit`. To keep hooks off enmetu's commits, set `"commitHooks": false`.
+
+**A dedicated board repository.** This is what we run in ours, where people, dispatched agents and faru share one working tree:
+
+```json
+{
+  "commitSubject": "board: local changes",
+  "stagedSelection": "commit",
+  "commitHooks": false
+}
+```
+
+`"stagedSelection": "commit"` commits a partial staging together with everything else, as faru's own sync did with `git add .`. enmetu's default, `"wait"`, holds every commit and pull until that staging is committed or undone, and an agent killed in the middle of its own commit can leave one behind. `"commitHooks": false` because the repository keeps the node hook an older faru installed for people and agents, and enmetu checks its own commits file by file with the same two rules.
+
 ## Creating Cards
 
 Tell your agent:
@@ -477,7 +519,7 @@ Cards are folders with markdown files. Any tool that can write files can create 
 - **Archive** — archive cards from the detail view. Toggle the archive view to browse archived cards. Auto-archive sweeps `done` cards older than N days (configurable)
 - **Open in editor** — click any file in the card sidebar to open it in your default editor
 - **Live reload** — edit cards in your editor, board updates instantly
-- **Git sync** — automatically commits, pushes, and pulls via git when `autoSync` is enabled
+- **Git sync**: [enmetu](#git-sync) commits, pushes, and pulls via git when `autoSync` is enabled
 - **Drag & drop** — move cards between columns
 - **Inline editing** — click titles and descriptions to edit in-place
 - **Assignee detection** — reads `git config user.name`, populates assignee dropdowns from existing cards
@@ -502,14 +544,14 @@ This comes from lean thinking and trunk-based development. Minimize work in prog
 <details>
 <summary>Where does faru run?</summary>
 
-On your machine. Faru is a local dev server — you run `npx github:fluado/faru` in the directory where your `faru.config.json` lives, open `http://localhost:3333` in your browser, and "Open in Editor" opens files in your local editor. Your AI agent doesn't need faru running at all. The agent just writes markdown files and pushes via git. Faru polls the remote every 5 seconds and pulls changes automatically.
+On your machine. Faru is a local dev server: you run `npx github:fluado/faru` in the directory where your `faru.config.json` lives, open `http://localhost:3333` in your browser, and "Open in Editor" opens files in your local editor. Your AI agent doesn't need faru running at all. The agent just writes markdown files and pushes via git. With `autoSync` on, enmetu checks the remote every 5 seconds and pulls changes automatically.
 
 </details>
 
 <details>
 <summary>Will faru pollute my git history?</summary>
 
-When `autoSync` is `true`, faru commits every change with a `board: ` prefix (`board: move X to wip`, `board: comment on Y`). These are real commits on whatever branch is checked out.
+When `autoSync` is `true`, enmetu commits every change after 5 seconds of quiet, with one fixed subject: `enmetu: local changes`, or your own `commitSubject` in `enmetu.config.json`. These are real commits on whatever branch is checked out.
 
 If you want to keep your source repo's history clean, **run faru in a separate repo**. Create a dedicated repo for your backlog and config, point your agents at it for card management, and run faru there. Board commits stay completely isolated from your code history. This is what we do.
 
