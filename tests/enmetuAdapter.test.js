@@ -158,6 +158,20 @@ test("startEnmetu gets the root and a sink that passes enmetu's text on unchange
 	await sync.stop();
 });
 
+test("startEnmetu gets faru's commit message writer, and the same one again after a retry", async () => {
+	const enmetu = fakeEnmetu([5]);
+	const proc = fakeProc();
+	const commitMessage = async () => "Move Launch plan to done";
+	const { handle } = start(enmetu, proc, { commitMessage });
+	const sync = await handle;
+	await new Promise((resolve) => setTimeout(resolve, RETRY_MS * 3));
+
+	expect(enmetu.runs.length).toBe(2);
+	expect(enmetu.runs.map((run) => run.options.commitMessage)).toEqual([commitMessage, commitMessage]);
+
+	await sync.stop();
+});
+
 test.each([
 	[1, "git sync stopped after an unexpected error (enmetu's line above says which); restart faru to try again"],
 	[2, "git sync off: enmetu.config.json is invalid (enmetu's line above says why); fix it, then restart faru"],

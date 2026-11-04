@@ -40,6 +40,7 @@ const ENDED = {
  *   load?: () => Promise<object>,        // default: () => import("@fluado/enmetu")
  *   proc?: { on, exit, versions, execPath },  // default: process
  *   retryMs?: number,                    // default 60000; exit 5 only
+ *   commitMessage?: (change) => Promise<string|null>,  // enmetu's commitMessage option; see commitMessages.js
  * }} options
  * @returns {Promise<{ stop(): Promise<void> }>}  // the handle the signal handlers use; tests call it
  */
@@ -50,6 +51,7 @@ async function startSync({
 	load = () => import("@fluado/enmetu"),
 	proc = process,
 	retryMs = DEFAULT_RETRY_MS,
+	commitMessage,
 }) {
 	const inert = { stop: async () => {} };
 
@@ -104,7 +106,7 @@ async function startSync({
 
 	// 4 and 5. Start, and decide what an end without stop() means.
 	function begin() {
-		run = launch(enmetu, root, out);
+		run = launch(enmetu, root, out, commitMessage);
 		run.done.then((code) => {
 			if (stopping) return;
 			const ended = ENDED[code];
@@ -134,9 +136,12 @@ async function startSync({
  * broken install; it is reported like enmetu reports an unexpected error, so
  * startSync still never rejects.
  */
-function launch(enmetu, root, out) {
+function launch(enmetu, root, out, commitMessage) {
+	const options = { repo: root, log: { write: (text) => out(text) } };
+	// An enmetu without the option ignores it and writes its fixed subject.
+	if (commitMessage) options.commitMessage = commitMessage;
 	try {
-		return enmetu.startEnmetu({ repo: root, log: { write: (text) => out(text) } });
+		return enmetu.startEnmetu(options);
 	} catch (error) {
 		out(`enmetu: ${error && error.message}\n`);
 		return { done: Promise.resolve(1), stop: () => Promise.resolve(1) };

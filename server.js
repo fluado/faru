@@ -7,6 +7,7 @@ const dispatch = require("./dispatch");
 const kata = require("./kata");
 const { createRegistry } = require("./registry");
 const { startSync } = require("./enmetuAdapter");
+const { boardCommitMessage } = require("./commitMessages");
 const { pruneHusks } = require("./husks");
 
 const DOCS_ROOT = process.cwd();
@@ -1429,7 +1430,14 @@ server.listen(PORT, () => {
 
 	// Started only once the port is bound, so a second faru on the same port
 	// fails at listen before it starts a second enmetu.
-	if (config.autoSync) startSync({ root: DOCS_ROOT, log, out: (text) => process.stdout.write(`  ${text}`) });
+	if (config.autoSync) {
+		startSync({
+			root: DOCS_ROOT,
+			log,
+			out: (text) => process.stdout.write(`  ${text}`),
+			commitMessage: (change) => boardCommitMessage(change, { backlogDir: BACKLOG_DIR }),
+		});
+	}
 	// Whatever autoSync says: a person's own git pull leaves the same husk.
 	pruneHusks({ repo: DOCS_ROOT, backlogDir: BACKLOG_DIR, log });
 
