@@ -1,6 +1,6 @@
 {
 	"name": "faru",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "Git-native kanban board. Cards are markdown files.",
 	"bin": {
 		"faru": "./server.js"
@@ -8,6 +8,7 @@
 	"license": "MIT",
 	"repository": "fluado/faru",
 	"dependencies": {
+		"@fluado/enmetu": "0.1.0",
 		"chrome-remote-interface": "0.34.0",
 		"node-cron": "^4.2.1"
 	},

@@ -5,12 +5,15 @@
     "": {
       "name": "faru",
       "dependencies": {
+        "@fluado/enmetu": "0.1.0",
         "chrome-remote-interface": "0.34.0",
         "node-cron": "^4.2.1",
       },
     },
   },
   "packages": {
+    "@fluado/enmetu": ["@fluado/enmetu@0.1.0", "", { "bin": { "enmetu": "dist/cli.js" } }, "sha512-VKMISXw6XeowWBcnN4HGFiggODyaofGjBUe6DNTO2KHdrTp8Xne6mU1nbxrgjbQfHUq4Uv/JgsbG7dmkRDUgzw=="],
+
     "chrome-remote-interface": ["chrome-remote-interface@0.34.0", "", { "dependencies": { "commander": "2.11.x", "ws": "^7.2.0" }, "bin": "bin/client.js" }, "sha512-rTTcTZ3zemx8I+nvBii7d8BAF0Ms8LLEroypfvwwZOwSpyNGLE28nStXyCA6VwGp2YSQfmCrQH21F/E+oBFvMw=="],
 
     "commander": ["commander@2.11.0", "", {}, "sha512-b0553uYA5YAEGgyYIGYROzKQ7X5RAqedkfjiZxwi0kL1g3bOaBNNZfYkzt/CL0umgD5wc9Jec2FbB98CjkMRvQ=="],
