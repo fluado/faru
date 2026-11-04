@@ -16,7 +16,9 @@ const ROOT = "/work/board";
 const EXEC = "/opt/bun/bin/bun";
 const CLI = path.join(__dirname, "..", "node_modules", "@fluado", "enmetu", "dist", "cli.js");
 const RETRY_MS = 10;
-const STARTED = `git sync: enmetu 0.1.0 for ${ROOT}`;
+// The adapter names the installed package's version; a pin bump must not break these tests.
+const INSTALLED = require("@fluado/enmetu/package.json").version;
+const STARTED = `git sync: enmetu ${INSTALLED} for ${ROOT}`;
 const STOPPING = "stopping git sync after its running cycle; press Ctrl-C again to quit at once";
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));

@@ -491,12 +491,12 @@ The halt survives restarts until you run `resume`. The board keeps working meanw
 ```json
 {
   "commitSubject": "board: local changes",
-  "stagedSelection": "commit",
+  "partialStagingWaitMs": 0,
   "commitHooks": false
 }
 ```
 
-`"stagedSelection": "commit"` commits a partial staging together with everything else, as faru's own sync did with `git add .`. enmetu's default, `"wait"`, holds every commit and pull until that staging is committed or undone, and an agent killed in the middle of its own commit can leave one behind. `"commitHooks": false` because the repository keeps the node hook an older faru installed for people and agents, and enmetu checks its own commits file by file with the same two rules.
+`"partialStagingWaitMs": 0` commits a partial staging together with everything else at once, as faru's own sync did with `git add .`. enmetu's default waits up to 5 minutes for that staging to be committed or undone, and an agent killed in the middle of its own commit can leave one behind. `"commitHooks": false` because the repository keeps the node hook an older faru installed for people and agents, and enmetu checks its own commits file by file with the same two rules.
 
 ## Creating Cards
 
