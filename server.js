@@ -6,9 +6,8 @@ const { execFile, execFileSync } = require("child_process");
 const dispatch = require("./dispatch");
 const kata = require("./kata");
 const { createRegistry } = require("./registry");
-const { stageWithGuard } = require("./gitguard");
-const { syncWithRemote, abortRebaseVerified } = require("./gitsync");
-const { installHooks } = require("./githooks");
+const { startSync } = require("./enmetuAdapter");
+const { pruneHusks } = require("./husks");
 
 const DOCS_ROOT = process.cwd();
 
@@ -556,43 +555,11 @@ function archiveCard(slug) {
 	fs.renameSync(src, path.join(ARCHIVE_DIR, slug));
 }
 
-// Move one or more cards to the archive AND commit the rename as a single
-// mutex-held unit. This is the key to not leaving an uncommitted rename on
-// disk: while gitBusy is held the sync loop skips its cycle (checkRemote),
-// so it can never `git stash` a half-done archive and then collide with the
-// same rename arriving from the pull. If the mutex is already taken the
-// archive is deferred (the next sweep retries) rather than done outside it.
-// Returns true if the archive was performed, false if deferred/skipped.
-function archiveAndCommit(slugs, message) {
-	// No git sync configured — archiving is a plain filesystem move.
-	if (!config.autoSync) {
-		for (const slug of slugs) archiveCard(slug);
-		return true;
-	}
-	if (gitBusy) {
-		log(`⏳ git busy — deferring archive: ${message}`);
-		return false;
-	}
-	gitBusy = true;
-	try {
-		const paths = [];
-		for (const slug of slugs) {
-			// Skip (don't abort the batch) if a card vanished since it was picked.
-			if (!fs.existsSync(path.join(BACKLOG_DIR, slug))) continue;
-			archiveCard(slug); // fs.renameSync — moves tracked + untracked contents
-			paths.push(`backlog/${slug}`, `backlog/archive/${slug}`);
-		}
-		const guard = stageWithGuard({ root: DOCS_ROOT, paths, log });
-		if (!guard.staged) {
-			gitBusy = false;
-			return true; // the move happened; there was simply nothing left to record
-		}
-		commitAndPush(message); // hands off the mutex (released on push / no-op)
-		return true;
-	} catch (e) {
-		gitBusy = false;
-		log(`⚠  archive failed: ${e.message}`);
-		return false;
+// Archiving is a plain move in both modes; with autoSync on, enmetu commits
+// it. A card that vanished since it was picked is skipped, not an error.
+function archiveCards(slugs) {
+	for (const slug of slugs) {
+		if (fs.existsSync(path.join(BACKLOG_DIR, slug))) archiveCard(slug);
 	}
 }
 
@@ -624,13 +591,15 @@ function autoArchiveSweep() {
 
 	if (eligible.length === 0) return;
 
-	// Rename + commit atomically under the git mutex so the sync loop can't
-	// stash a half-done archive. If deferred (mutex busy) the next sweep retries.
-	const msg = `auto-archive ${eligible.length} done card${eligible.length === 1 ? "" : "s"}`;
-	if (archiveAndCommit(eligible, msg)) {
-		for (const slug of eligible) log(`📦 auto-archived: ${slug}`);
-		notifyLiveReload();
+	try {
+		archiveCards(eligible);
+	} catch (e) {
+		// The sweep runs from a timer; a failed rename must not end faru.
+		log(`⚠  archive failed: ${e.message}`);
+		return;
 	}
+	for (const slug of eligible) log(`📦 auto-archived: ${slug}`);
+	notifyLiveReload();
 }
 
 function addComment(slug, text) {
@@ -655,95 +624,6 @@ function addComment(slug, text) {
 	}
 	fs.writeFileSync(target, updated, "utf-8");
 	return { author, date: `${date} ${time}`, text };
-}
-
-// --- Git Helpers ---
-
-// Mutex — prevents concurrent git operations (commit+push vs pull) from
-// corrupting working-tree state. Node is single-threaded so a boolean is
-// sufficient for the sync portions; the flag stays held across async push/pull.
-let gitBusy = false;
-
-function gitCommit(message, paths) {
-	if (!config.autoSync) return;
-	if (gitBusy) {
-		log(`⏳ git busy — deferring commit: ${message}`);
-		return;
-	}
-	gitBusy = true;
-	try {
-		// Two-stage check over what is about to be staged: conflict markers, and
-		// JSON that does not parse. Offenders are held back and reported; the
-		// commit still carries everything else. See gitguard.js.
-		const guard = stageWithGuard({ root: DOCS_ROOT, paths, log });
-		if (!guard.staged) {
-			gitBusy = false;
-			return; // nothing left to commit this cycle
-		}
-		commitAndPush(message);
-	} catch (e) {
-		gitBusy = false;
-		log(`⚠  git commit failed: ${e.message}`);
-	}
-}
-
-// Commit whatever is currently staged, then rebase + push. Assumes the caller
-// already holds the gitBusy mutex and has staged its changes; ownership of the
-// mutex passes to this function, which releases it (via the async push callback,
-// or synchronously if there is nothing to commit / an error propagates).
-function commitAndPush(message) {
-	// Check if there's anything staged
-	try {
-		execFileSync("git", ["diff", "--cached", "--quiet"], {
-			cwd: DOCS_ROOT,
-			stdio: "pipe",
-		});
-		gitBusy = false;
-		return; // nothing staged
-	} catch (_) {
-		// diff --cached returns exit 1 if there are staged changes — that's what we want
-	}
-	execFileSync("git", ["commit", "-m", `board: ${message}`], {
-		cwd: DOCS_ROOT,
-		stdio: "pipe",
-	});
-	log(`📝 committed: ${message}`);
-	// Pull --rebase before push to catch up with remote and avoid
-	// "rejected — non-fast-forward" races. Working tree is clean
-	// after the commit above, so no stash needed here.
-	try {
-		execFileSync("git", ["pull", "--rebase"], {
-			cwd: DOCS_ROOT,
-			stdio: "pipe",
-		});
-	} catch (_pullErr) {
-		log(`⚠  pre-push rebase conflict — aborting rebase, commit preserved locally`);
-		// The abort has to be PROVEN. Swallowing its error left the daemon
-		// committing and pushing out of a repository stuck mid-rebase.
-		if (!abortRebaseVerified(DOCS_ROOT, log)) {
-			syncHalted = true;
-			gitBusy = false;
-			return;
-		}
-	}
-	// Push (async — release lock when done)
-	execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
-		gitBusy = false;
-		if (err) {
-			log(`⚠  git push failed: ${stderr.trim() || err.message}`);
-			return;
-		}
-		log(`⬆  pushed`);
-		// Update SHA so the next poll doesn't trigger a redundant pull
-		try {
-			lastKnownRemoteSha = execFileSync("git", ["rev-parse", "HEAD"], {
-				cwd: DOCS_ROOT,
-				encoding: "utf-8",
-			}).trim();
-		} catch (_) {
-			/* best effort */
-		}
-	});
 }
 
 // --- HTTP Server ---
@@ -846,7 +726,6 @@ const server = http.createServer(async (req, res) => {
 			const body = await readBody(req);
 			const text = (body.text || "").trim();
 			fs.writeFileSync(GOAL_FILE, text + "\n", "utf-8");
-			gitCommit(`goal: ${text.slice(0, 50)}`, [GOAL_FILE]);
 			log(`Goal updated: "${text.slice(0, 60)}"`);
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ ok: true }));
@@ -869,13 +748,6 @@ const server = http.createServer(async (req, res) => {
 		try {
 			const body = await readBody(req);
 			const result = updateCard(slug, body);
-			if (body.status) {
-				gitCommit(`move ${slug} to ${body.status}`, [`backlog/${slug}`]);
-			} else if (body.type) {
-				gitCommit(`retype ${slug} to ${body.type}`, [`backlog/${slug}`]);
-			} else if (body.title) {
-				gitCommit(`rename ${slug}`, [`backlog/${slug}`]);
-			}
 			invalidateSlug(slug);
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify(result));
@@ -896,9 +768,6 @@ const server = http.createServer(async (req, res) => {
 				body.status,
 				body.description,
 			);
-			gitCommit(`create ${slug} as ${body.status || "todo"}`, [
-				`backlog/${slug}`,
-			]);
 			invalidateCardCache();
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ slug }));
@@ -917,13 +786,10 @@ const server = http.createServer(async (req, res) => {
 		try {
 			if (!fs.existsSync(path.join(BACKLOG_DIR, slug)))
 				throw new Error("Card not found");
-			// Atomic rename + commit under the git mutex (see archiveAndCommit).
-			// Returns false if the mutex was momentarily busy — report that
-			// honestly so the client can retry rather than assume success.
-			const archived = archiveAndCommit([slug], `archive ${slug}`);
-			if (archived) invalidateCardCache();
-			res.writeHead(archived ? 200 : 503, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(archived ? { archived: true } : { archived: false, retry: true }));
+			archiveCards([slug]);
+			invalidateCardCache();
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ archived: true }));
 		} catch (e) {
 			res.writeHead(400, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: e.message }));
@@ -940,9 +806,6 @@ const server = http.createServer(async (req, res) => {
 			const body = await readBody(req);
 			if (!body.text || !body.text.trim()) throw new Error("Empty comment");
 			const comment = addComment(slug, body.text.trim());
-			gitCommit(`comment on ${slug}`, [
-				`backlog/${slug}`,
-			]);
 			invalidateSlug(slug);
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify(comment));
@@ -1025,9 +888,6 @@ const server = http.createServer(async (req, res) => {
 			const stub = `\n\n---\n\n## ${nextId}: ${title}\n\n> Placeholder — expand with planning.\n`;
 			fs.appendFileSync(msPath, stub, "utf-8");
 
-			gitCommit(`add milestone ${nextId} to ${slug}`, [
-				`backlog/${slug}`,
-			]);
 			res.writeHead(201, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ id: nextId, title }));
 		} catch (e) {
@@ -1482,190 +1342,28 @@ fs.watch(PUBLIC_DIR, { recursive: true }, (eventType, filename) => {
 	}, 200);
 });
 
-// Watch backlog for card changes — invalidate cache + notify browsers.
-// This is separate from the repo-wide watcher so that non-backlog changes
-// (kata sweeps, tmp files, etc.) don't trigger SSE reloads.
+// Watch backlog for card changes: prune husks, invalidate the cache, notify
+// browsers. Files a pull writes arrive here like files a person writes, so
+// this is also how a change pulled by enmetu reaches open boards. Changes
+// outside backlog/ (kata sweeps, tmp files) don't trigger SSE reloads.
 let backlogReloadTimer = null;
 fs.watch(BACKLOG_DIR, { recursive: true }, (eventType, filename) => {
-	if (!filename || filename.includes(".DS_Store") || syncing) return;
+	if (!filename || filename.includes(".DS_Store")) return;
 
 	clearTimeout(backlogReloadTimer);
-	backlogReloadTimer = setTimeout(() => {
+	backlogReloadTimer = setTimeout(async () => {
 		log(`♻  backlog change (${path.basename(filename)}) — invalidating cache`);
+		// Before the reload, so a husk left by an archive on another machine
+		// never reaches the browser as a blank card.
+		await pruneHusks({ repo: DOCS_ROOT, backlogDir: BACKLOG_DIR, log });
 		invalidateCardCache();
 		notifyLiveReload();
 	}, 500); // 500ms debounce — lets multi-file writes settle
 });
 
-// Watch entire repo for git auto-commit only (no SSE, no cache invalidation).
-// Backlog reload is handled by the focused watcher above.
-let repoCommitTimer = null;
-const repoChanges = new Set();
-fs.watch(DOCS_ROOT, { recursive: true }, (eventType, filename) => {
-	if (
-		!filename ||
-		filename.includes(".DS_Store") ||
-		filename.startsWith(".git") ||
-		filename.includes("node_modules") ||
-		syncing
-	)
-		return;
-	repoChanges.add(filename);
-	clearTimeout(repoCommitTimer);
-	repoCommitTimer = setTimeout(() => {
-		const files = [...repoChanges];
-		repoChanges.clear();
-
-		// Group by top-level directory
-		const byDir = {};
-		for (const f of files) {
-			const parts = f.split(path.sep);
-			const dir = parts[0];
-			const rest = parts.slice(1).join(path.sep);
-			if (!byDir[dir]) byDir[dir] = [];
-			if (rest) byDir[dir].push(rest);
-		}
-
-		// Never emit filenames in the commit subject. fs.watch fires on
-		// any path under DOCS_ROOT including untracked/gitignored siblings,
-		// whose basenames would otherwise ride along on whatever `git add .`
-		// actually stages and leak into the (possibly public) origin.
-		const dirs = Object.keys(byDir);
-		let msg;
-		if (dirs.length === 1) {
-			const dir = dirs[0];
-			const n = byDir[dir].length;
-			msg = n === 0
-				? `update ${dir}`
-				: `${dir}: update ${n} file${n === 1 ? "" : "s"}`;
-		} else {
-			msg = `update ${dirs.join(", ")}`;
-		}
-
-		gitCommit(msg, ["."]);
-	}, 5000); // 5s debounce — lets multi-file saves settle
-});
-
-// --- Git Sync: poll remote SHA every 5s, pull only when changed ---
-const SYNC_INTERVAL = 5_000; // 5 seconds
-let lastKnownRemoteSha = null;
-let syncing = false;
-// Set when the repository could not be returned to a known-good state. Syncing
-// stops rather than continuing blind, because continuing is how a conflicted
-// tree reaches the remote.
-let syncHalted = false;
-
-function checkRemote() {
-	if (syncHalted) return; // a previous cycle left the repo in a state we will not guess at
-	if (gitBusy) return; // commit+push in progress — skip this cycle
-	execFile(
-		"git",
-		["ls-remote", "origin", "HEAD"],
-		{ cwd: DOCS_ROOT },
-		(err, stdout) => {
-			if (err) return; // network blip — skip silently
-			const remoteSha = stdout.split(/\s/)[0];
-			if (!remoteSha) return;
-
-			// First run — just record the SHA
-			if (!lastKnownRemoteSha) {
-				lastKnownRemoteSha = remoteSha;
-				return;
-			}
-
-			if (remoteSha === lastKnownRemoteSha) return; // no change
-			if (gitBusy) return; // recheck after async gap
-			lastKnownRemoteSha = remoteSha;
-
-			// Remote changed — pull. See gitsync.js: commit-then-rebase, never
-			// a whole-tree stash, and a rebase abort that is verified.
-			gitBusy = true;
-			syncing = true;
-			syncWithRemote({ repo: DOCS_ROOT, log, backlogDir: BACKLOG_DIR })
-				.then((result) => {
-					if (result.status === "halted") {
-						syncHalted = true;
-						log(`🛑 sync stopped. Resolve the repository by hand, then restart the board.`);
-						return;
-					}
-					if (result.status === "blocked") return; // already reported
-					if (result.pulled.length) {
-						log(
-							`⬇  synced from remote:\n${result.pulled
-								.map((l) => `       ${l}`)
-								.join("\n")}`,
-						);
-					} else if (result.status === "synced") {
-						log(`⬇  synced from remote`);
-					}
-					if (result.status === "synced") notifyLiveReload();
-					ensureHooks(); // idempotent; re-installs if someone removed it
-					// The sync may have made a commit of its own; get it out.
-					if (result.committed) pushIfAhead();
-				})
-				.catch((e) => log(`⚠  sync failed: ${e.message}`))
-				.finally(() => {
-					syncing = false;
-					gitBusy = false;
-				});
-		},
-	);
-}
-
-// The pre-commit hook covers commits the daemon does not make: a person at a
-// terminal, a dispatched agent session, a script added later. Opt out with
-// "gitHooks": false. It never takes over a core.hooksPath someone else set.
-let hooksReported = false;
-function ensureHooks() {
-	if (config.gitHooks === false) return;
-	const result = installHooks({ root: DOCS_ROOT, log });
-	if (!result.installed && !hooksReported) {
-		hooksReported = true;
-		log(`ℹ  pre-commit hook not installed — ${result.reason}`);
-	}
-}
-
-// Pushes only when the local branch is actually ahead, so a quiet cycle costs
-// nothing. Best-effort: a failed push is retried by the next commit.
-function pushIfAhead() {
-	execFile("git", ["rev-list", "--count", "@{u}..HEAD"], { cwd: DOCS_ROOT }, (err, out) => {
-		if (err || Number((out || "").trim()) === 0) return;
-		execFile("git", ["push"], { cwd: DOCS_ROOT }, (pushErr, _o, pushErrOut) => {
-			if (pushErr) {
-				log(`⚠  git push failed: ${(pushErrOut || "").trim() || pushErr.message}`);
-				return;
-			}
-			log(`⬆  pushed`);
-			try {
-				lastKnownRemoteSha = execFileSync("git", ["rev-parse", "HEAD"], {
-					cwd: DOCS_ROOT,
-					encoding: "utf-8",
-				}).trim();
-			} catch (_) {
-				/* best effort */
-			}
-		});
-	});
-}
-
-if (config.autoSync) {
-	ensureHooks();
-	setInterval(checkRemote, SYNC_INTERVAL);
-
-	// Initial push on startup (flush any unpushed local commits)
-	execFile("git", ["push"], { cwd: DOCS_ROOT }, (err, _out, stderr) => {
-		if (err) {
-			log(`⚠  initial push failed: ${stderr.trim() || err.message}`);
-			return;
-		}
-		const result = stderr.trim();
-		if (result && !result.includes("Everything up-to-date")) {
-			log(`⬆  initial push: ${result}`);
-		}
-	});
-}
-
-const syncLabel = config.autoSync ? 'ON' : 'OFF';
+// With autoSync on, enmetu is the one git writer for this repository (see
+// enmetuAdapter.js); faru only writes files.
+const syncLabel = config.autoSync ? 'enmetu' : 'OFF';
 const archiveLabel = config.archiveDoneAfterDays
 	? `${config.archiveDoneAfterDays}d`
 	: 'OFF';
@@ -1728,6 +1426,12 @@ server.listen(PORT, () => {
 	console.log(`  │   dojo: ${dojoLabel.padEnd(27)}│`);
 	console.log(`  │                                      │`);
 	console.log(`  └──────────────────────────────────────┘\n`);
+
+	// Started only once the port is bound, so a second faru on the same port
+	// fails at listen before it starts a second enmetu.
+	if (config.autoSync) startSync({ root: DOCS_ROOT, log, out: (text) => process.stdout.write(`  ${text}`) });
+	// Whatever autoSync says: a person's own git pull leaves the same husk.
+	pruneHusks({ repo: DOCS_ROOT, backlogDir: BACKLOG_DIR, log });
 
 	if (config.archiveDoneAfterDays) {
 		autoArchiveSweep();

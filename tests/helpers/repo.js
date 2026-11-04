@@ -1,16 +1,16 @@
 /**
- * Throwaway git repositories for the sync tests.
+ * Throwaway git repositories for the husk and enmetu integration tests.
  *
- * Deliberately NO MOCKS. The defects these tests pin live in git's own
- * behaviour — `git stash` exiting 0 on a clean tree, `git commit` refusing an
- * unmerged index, git unlinking a working-tree file before rewriting it — and a
- * stubbed git would define every one of them away. So each test builds a real
- * bare origin, clones it for real, and runs the real binary against it.
+ * Deliberately no mocks. What counts as a husk (tracked, untracked, ignored, a
+ * rebase in progress) and what enmetu does with a clone are decided by git
+ * itself, and a stubbed git would decide them for the test. So each test
+ * builds a real bare origin, clones it for real, and runs the real binary
+ * against it.
  *
  * Shape:
  *
  *   <tmp>/origin.git      bare, the shared remote
- *   <tmp>/w1/             a clone — one "machine"
+ *   <tmp>/w1/             a clone, one "machine"
  *   <tmp>/w2/             another clone, for the two-writer cases
  */
 
@@ -73,13 +73,6 @@ function makeClone(originPath, dir, name) {
 		push: () => git(dir, ["push", "-q", "origin", "HEAD"]),
 		head: () => git(dir, ["rev-parse", "HEAD"]).trim(),
 		status: () => git(dir, ["status", "--porcelain"]),
-		/** Paths git reports as unmerged — I4 reads this. */
-		unmerged() {
-			return git(dir, ["diff", "--name-only", "--diff-filter=U"])
-				.split("\n")
-				.filter(Boolean);
-		},
-		stashList: () => git(dir, ["stash", "list"]).split("\n").filter(Boolean),
 		log: () => git(dir, ["log", "--oneline"]).split("\n").filter(Boolean),
 	};
 }
@@ -119,18 +112,6 @@ function makeRepo(seed = {}) {
 	return first;
 }
 
-/** A file carrying real conflict markers, as a collided stash pop leaves it. */
-function conflicted(ours, theirs) {
-	return [
-		"<<<<<<< Updated upstream",
-		ours,
-		"=======",
-		theirs,
-		">>>>>>> Stashed changes",
-		"",
-	].join("\n");
-}
-
 /** Collects log lines the way the daemon's `log()` does, for assertions. */
 function recorder() {
 	const lines = [];
@@ -140,4 +121,4 @@ function recorder() {
 	return log;
 }
 
-module.exports = { makeRepo, conflicted, recorder, git, gitTry };
+module.exports = { makeRepo, recorder, git, gitTry };
