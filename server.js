@@ -1255,6 +1255,7 @@ const server = http.createServer(async (req, res) => {
 			startedAt: s.startedAt,
 			log: s.log,
 			liveEvent: s.liveEvent || null,
+			liveLog: s.card && s.liveLog ? (s.liveLog[s.card.slug] || []) : [],
 			queue: dispatch.getQueue(),
 		}));
 		return;

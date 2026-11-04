@@ -20,7 +20,11 @@ let state = {
 	startedAt: null,
 	log: [], // [{ skill, status, duration, message }, ...]
 	liveEvent: null,
+	liveLog: {}, // slug -> capped array of recent event strings (live activity tail)
 };
+
+// Max events retained per card in the live activity tail.
+const LIVE_LOG_CAP = 50;
 
 function getState() {
 	return { ...state };
@@ -342,6 +346,7 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		startedAt: new Date().toISOString(),
 		log: [],
 		liveEvent: null,
+		liveLog: { [card.slug]: [] },
 	};
 
 	// Move card to WIP
@@ -401,7 +406,13 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 			skills: fns.skillsDir,
 			__onEvent: (eventText) => {
 				if (!eventText) return;
-				state.liveEvent = `[${step.skill}] ${eventText}`;
+				const line = `[${step.skill}] ${eventText}`;
+				state.liveEvent = line;
+				// Append to the card's capped live activity tail.
+				if (!state.liveLog[card.slug]) state.liveLog[card.slug] = [];
+				const buf = state.liveLog[card.slug];
+				buf.push(line);
+				if (buf.length > LIVE_LOG_CAP) buf.shift();
 				fns.notifyReload();
 			},
 		};
@@ -532,6 +543,9 @@ async function runDispatch(card, chain, driver, agentConfig, fns) {
 		startedAt: null,
 		log: [],
 		liveEvent: null,
+		// Retain the just-finished card's tail so an open detail modal keeps
+		// showing the final activity until the next dispatch starts.
+		liveLog: state.liveLog,
 	};
 
 	fns.notifyReload();
@@ -552,6 +566,7 @@ function abortDispatch() {
 		startedAt: null,
 		log: [],
 		liveEvent: null,
+		liveLog: {},
 	};
 	return slug;
 }

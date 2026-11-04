@@ -406,6 +406,10 @@ function openDetail(card, pushState = true) {
   commentSubmit.disabled = true;
 
   overlay.classList.add('open');
+
+  // Immediately reflect any running dispatch for this card (else the live
+  // feed would only appear on the next 3s poll tick).
+  pollDispatchStatus();
 }
 
 function closeDetail(pushState = true) {
@@ -790,6 +794,9 @@ function updateDispatchUI(s) {
     }
   }
 
+  // --- Live activity feed (card detail modal) ---
+  renderLiveFeed(s);
+
   // Update queue in dispatch modal (if open)
   renderDispatchQueue(s.queue || []);
 
@@ -815,6 +822,40 @@ function updateDispatchUI(s) {
 
   // --- Queue modal contents (update if open) ---
   updateQueueModal(s);
+}
+
+// Live activity tail for the card open in the detail modal. Shows the running
+// agent's recent events (Read/Edit/Bash/assistant). Only visible while THIS
+// card is the running dispatch; hidden otherwise.
+function renderLiveFeed(s) {
+  const zone = document.getElementById('detail-live-feed-zone');
+  const feed = document.getElementById('detail-live-feed');
+  const header = document.getElementById('detail-live-feed-header');
+  if (!zone || !feed) return;
+
+  const isThisCardRunning = s.status === 'running' && s.currentCard === currentDetailSlug;
+  const lines = s.liveLog || [];
+
+  if (!isThisCardRunning || lines.length === 0) {
+    zone.style.display = 'none';
+    feed.innerHTML = '';
+    return;
+  }
+
+  zone.style.display = '';
+  const skillName = s.currentSkill ? s.currentSkill.replace(/-/g, ' ') : '…';
+  header.textContent = `⏳ ${skillName} · live activity`;
+
+  // Only repaint if the tail changed, to preserve scroll when unchanged.
+  const joined = lines.join('\n');
+  if (feed.dataset.rendered === joined) return;
+  feed.dataset.rendered = joined;
+
+  feed.innerHTML = lines
+    .map((l) => `<div class="live-line">${escapeHtml(l)}</div>`)
+    .join('');
+  // Auto-scroll to newest.
+  feed.scrollTop = feed.scrollHeight;
 }
 
 let _queueModalSetup = false;
