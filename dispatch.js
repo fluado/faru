@@ -294,9 +294,13 @@ function composePrompt(step, card, previousLog, skillsDir, sentinelPath) {
 		parts.push(step.context.trim());
 	}
 
-	// Sentinel
+	// Wrap-up: commit + push, then signal completion.
+	// The agent knows which repo(s) it changed, so it pushes from the right
+	// place — faru does not push on the agent's behalf.
 	parts.push(
-		`When done, touch or re-create \`${sentinelPath}\` with content \`done\`.`,
+		`When done: in every git repository you modified, commit your changes with a clear message and \`git push\`. ` +
+		`If a push is rejected, pull/rebase and push again; do not leave committed work unpushed. ` +
+		`Then touch or re-create \`${sentinelPath}\` with content \`done\`.`,
 	);
 
 	return parts.join(" ");
