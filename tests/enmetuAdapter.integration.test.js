@@ -5,6 +5,7 @@
  * deadlines below.
  */
 
+const path = require("path");
 const { test, expect, afterEach } = require("bun:test");
 const { makeRepo, recorder, git } = require("./helpers/repo");
 const { startSync } = require("../enmetuAdapter");
@@ -28,6 +29,18 @@ afterEach(async () => {
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
+/**
+ * The harness sets core.hooksPath to "" to keep the host's hooks out. git
+ * refuses an empty hooks path in `rev-parse --git-path hooks`, which enmetu
+ * runs to locate the repository, so this clone's hooks path names a directory
+ * that does not exist: still no hooks, and a path git accepts.
+ */
+function makeClone() {
+	const clone = makeRepo(SEED);
+	clone.git("config", "core.hooksPath", path.join(clone.tmp, "no-hooks"));
+	return clone;
+}
+
 async function until(condition, timeoutMs) {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
@@ -43,7 +56,7 @@ async function liveness() {
 }
 
 test("a card written on a clone reaches the origin as a board: local changes commit", async () => {
-	repo = makeRepo(SEED);
+	repo = makeClone();
 	const out = [];
 	const sync = await startSync({ root: repo.root, log: recorder(), out: (text) => out.push(text), proc: PROC });
 	handles.push(sync);
@@ -59,7 +72,7 @@ test("a card written on a clone reaches the origin as a board: local changes com
 }, 30000);
 
 test("a second startSync on the same clone logs the exit-4 line and does not retry", async () => {
-	repo = makeRepo(SEED);
+	repo = makeClone();
 	const first = await startSync({ root: repo.root, log: recorder(), out: () => {}, proc: PROC });
 	handles.push(first);
 	expect(await until(async () => ["running", "unrecorded"].includes(await liveness()), 15000)).toBe(true);
