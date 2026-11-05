@@ -8,7 +8,7 @@
 	"license": "MIT",
 	"repository": "fluado/faru",
 	"dependencies": {
-		"@fluado/enmetu": "0.2.0",
+		"@fluado/enmetu": "0.3.0",
 		"chrome-remote-interface": "0.34.0",
 		"node-cron": "^4.2.1"
 	},
