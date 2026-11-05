@@ -32,7 +32,7 @@ async function until(condition, timeoutMs = 2000) {
 }
 
 /** A process that records signal handlers and exit codes instead of exiting. */
-function fakeProc(versions = { node: "24.3.0", bun: "1.3.6" }) {
+function fakeProc(versions = { node: "24.3.0", bun: "1.4.4" }) {
 	const handlers = new Map();
 	const exits = [];
 	return {
@@ -114,7 +114,29 @@ test("Node 22 gets one line, no load and no signal handler", async () => {
 		retryMs: RETRY_MS,
 	});
 
-	expect(log.lines).toEqual(["git sync off: enmetu needs Node 24+ or Bun 1.3.6+ (this is Node 22.11.0)"]);
+	expect(log.lines).toEqual(["git sync off: enmetu needs Node 24+ or Bun 1.4.4+ (this is Node 22.11.0)"]);
+	expect(loads).toBe(0);
+	expect(proc.signals()).toEqual([]);
+});
+
+test("Bun 1.3.6 gets one line, no load and no signal handler", async () => {
+	let loads = 0;
+	const proc = fakeProc({ node: "24.3.0", bun: "1.3.6" });
+	const log = recorder();
+
+	await startSync({
+		root: ROOT,
+		log,
+		out: () => {},
+		load: async () => {
+			loads++;
+			return {};
+		},
+		proc,
+		retryMs: RETRY_MS,
+	});
+
+	expect(log.lines).toEqual(["git sync off: enmetu needs Node 24+ or Bun 1.4.4+ (this is Bun 1.3.6)"]);
 	expect(loads).toBe(0);
 	expect(proc.signals()).toEqual([]);
 });

@@ -51,7 +51,7 @@ faru is a git-native kanban board that renders markdown files as cards.
 - backlogDir: path to the backlog directory (relative to project root)
 - port: local server port
 - cardCategories: the card types available in the UI (lowercase)
-- autoSync: if true, faru starts enmetu, which commits, pushes and pulls changes via git (needs Node 24+ or Bun 1.3.6+, git 2.38+ and a branch with an upstream)
+- autoSync: if true, faru starts enmetu, which commits, pushes and pulls changes via git (needs Node 24+ or Bun 1.4.4+, git 2.38+ and a branch with an upstream)
 - archiveDoneAfterDays: cards marked "done" are auto-archived after N days
 
 Adjust cardCategories to match this project (e.g. "feature", "bug", "infra", "docs").
@@ -462,7 +462,7 @@ With `"autoSync": true`, faru starts [enmetu](https://www.npmjs.com/package/@flu
 
 Requirements:
 
-- Node 24+ or Bun 1.3.6+
+- Node 24+ or Bun 1.4.4+
 - git 2.38+
 - a checked-out branch with an upstream, at least one commit, and a committer identity
 

@@ -58,7 +58,7 @@ async function startSync({
 	// 1. Below enmetu's floor the import itself may fail in confusing ways.
 	const refusal = runtimeRefusal(proc.versions);
 	if (refusal) {
-		log(`git sync off: enmetu needs Node 24+ or Bun 1.3.6+ (this is ${refusal})`);
+		log(`git sync off: enmetu needs Node 24+ or Bun 1.4.4+ (this is ${refusal})`);
 		return inert;
 	}
 
@@ -148,9 +148,9 @@ function launch(enmetu, root, out, commitMessage) {
 	}
 }
 
-/** Bun 1.3.6 or newer, else Node 24 or newer; returns the refused runtime, or null. */
+/** Bun 1.4.4 or newer, else Node 24 or newer; returns the refused runtime, or null. */
 function runtimeRefusal(versions) {
-	if (versions.bun) return atLeast(versions.bun, [1, 3, 6]) ? null : `Bun ${versions.bun}`;
+	if (versions.bun) return atLeast(versions.bun, [1, 4, 4]) ? null : `Bun ${versions.bun}`;
 	return atLeast(versions.node, [24, 0, 0]) ? null : `Node ${versions.node}`;
 }
 
