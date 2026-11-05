@@ -481,7 +481,7 @@ If one is missing, faru logs one line saying which and runs without sync.
 | only deleted files | `Remove <title>` |
 | an edit | your `commitMessageCommand`, else `Update <title>` |
 
-Several cards or documents read `<title> and 2 more`. A title is a card's or document's frontmatter `title`, a markdown file's first heading, an HTML file's `<title>`, else the file or folder name. For your own subjects on edits, set enmetu's `commitMessageCommand` in your git config; see [enmetu's README](https://www.npmjs.com/package/@fluado/enmetu). The fixed `commitSubject` is used only when git cannot say what changed, or with an enmetu older than the option.
+Several cards or documents read `<title> and 2 more`. A title is a card's or document's frontmatter `title`, a markdown file's first heading, an HTML file's `<title>`, else the file or folder name. For your own subjects on edits, set enmetu's `commitMessageCommand` in your git config; see [enmetu's README](https://www.npmjs.com/package/@fluado/enmetu). A ready command that adds what changed from a local model through llm, such as Apple's on-device model: [enmetu's commit message example](https://codefloe.com/fluado/enmetu/src/branch/main/examples/commit-message). The fixed `commitSubject` is used only when git cannot say what changed, or with an enmetu older than the option.
 
 **Halt and resume.** When enmetu cannot verify the repository, for example after the upstream was rewritten, it halts and faru logs the two commands to run, with this machine's paths:
 
